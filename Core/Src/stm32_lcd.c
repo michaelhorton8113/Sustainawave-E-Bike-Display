@@ -725,14 +725,14 @@ void UTIL_LCD_DrawBitmap(uint32_t Xpos, uint32_t Ypos, uint8_t *pData)
 void UTIL_LCD_FillRect(uint32_t Xpos, uint32_t Ypos, uint32_t Width, uint32_t Height, uint32_t Color)
 {
   /* Fill the rectangle */
-  if(DrawProp->LcdPixelFormat == LCD_PIXEL_FORMAT_RGB565)
-  {
-    FuncDriver.FillRect(DrawProp->LcdDevice, Xpos, Ypos, Width, Height, CONVERTARGB88882RGB565(Color));
-  }
-  else
-  {
+//  if(DrawProp->LcdPixelFormat == LCD_PIXEL_FORMAT_RGB565)
+//  {
+//    FuncDriver.FillRect(DrawProp->LcdDevice, Xpos, Ypos, Width, Height, CONVERTARGB88882RGB565(Color));
+//  }
+//  else
+//  {
     FuncDriver.FillRect(DrawProp->LcdDevice, Xpos, Ypos, Width, Height, Color);
-  }
+//  }
 }
 
 /**

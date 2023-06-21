@@ -25,8 +25,8 @@
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f4xx.h"
-#include "custom_bus.h"
+#include "stm32l4xx.h"
+#include "stm32l4xx_nucleo_bus.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -101,16 +101,16 @@ extern  TIM_HandleTypeDef                   htim2;
 
 /* Exported macro ------------------------------------------------------------*/
 /* Chip Reset macro definition */
-#define LCD_RST_LOW()                       WRITE_REG(GPIOA->BSRR, (uint32_t)GPIO_PIN_1 << 16)
+#define LCD_RST_LOW()                       WRITE_REG(GPIOA->BRR, GPIO_PIN_1)
 #define LCD_RST_HIGH()                      WRITE_REG(GPIOA->BSRR, GPIO_PIN_1)
 
 /* Chip Select macro definition */
-#define LCD_CS_LOW()                        WRITE_REG(GPIOA->BSRR, (uint32_t)GPIO_PIN_9 << 16)
+#define LCD_CS_LOW()                        WRITE_REG(GPIOA->BRR, GPIO_PIN_9)
 #define LCD_CS_HIGH()                       WRITE_REG(GPIOA->BSRR, GPIO_PIN_9)
 
 /* Data/Command macro definition */
 #define LCD_DC_LOW()                        WRITE_REG(GPIOB->BSRR, GPIO_PIN_10)
-#define LCD_DC_HIGH()                       WRITE_REG(GPIOB->BSRR, (uint32_t)GPIO_PIN_10 << 16)
+#define LCD_DC_HIGH()                       WRITE_REG(GPIOB->BRR, GPIO_PIN_10)
 
 /* USER CODE BEGIN EM */
 
