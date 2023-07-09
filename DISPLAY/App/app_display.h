@@ -40,8 +40,9 @@
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
+void MX_DISPLAY_PreOSInit(void);
 void MX_DISPLAY_Init(void);
-void MX_DISPLAY_Process(void);
+void DISPLAY_Task(void *argument);
 
 /* USER CODE BEGIN EFP */
 

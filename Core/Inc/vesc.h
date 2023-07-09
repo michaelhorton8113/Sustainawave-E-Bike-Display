@@ -30,5 +30,6 @@ void sendVESCMessage(uint8_t TA);
 void vesc_init(CAN_HandleTypeDef *can_handle);
 void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan);
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
+int get_vesc_data(uint32_t *result, int num);
 
 #endif /* INC_VESC_H_ */

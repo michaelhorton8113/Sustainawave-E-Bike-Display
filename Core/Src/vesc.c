@@ -10,11 +10,11 @@
 uint8_t RxData[8];
 uint8_t vesc_id = 0x17;
 
-// Define a global variable to store the received VESC message
-uint8_t vescMessage[8];
+// Globally visible status
+// TODO Should probably deal with this better
+VESC_Status vesc_status;
 
 static CAN_HandleTypeDef *vesc_can;
-static VESC_Status status;
 
 void vesc_init(CAN_HandleTypeDef *can_handle)
 {
@@ -27,6 +27,8 @@ void vesc_init(CAN_HandleTypeDef *can_handle)
   filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
   filter.FilterMaskIdHigh = 0;
   filter.FilterMaskIdLow = 0;
+  filter.FilterIdHigh = 0;
+  filter.FilterIdLow = vesc_id;
   filter.FilterMode = CAN_FILTERMODE_IDMASK;
   filter.FilterScale = CAN_FILTERSCALE_32BIT;
 
@@ -82,49 +84,49 @@ void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan)
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-  CAN_RxHeaderTypeDef rxHeader;
+	CAN_RxHeaderTypeDef rxHeader;
 
-  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, RxData) != HAL_OK)
-  {
-    // Error occurred while receiving CAN message
-  }
+	uint8_t data[8];
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, data) != HAL_OK)
+	{
+		return;
+	}
 
-  // Check if the received message is from the VESC (assuming VESC has a specific CAN ID) - using 101 -> change to actual ID
-  if ((rxHeader.ExtId & 0x00FF) == vesc_id)
-  {
-    // Copy the received VESC message to vescMessage array
-    for (int i = 0; i < 8; i++)
-    {
-      vescMessage[i] = RxData[i];
-    }
-  }
-}
-
-int get_can_data(uint32_t id)
-{
-	UNUSED(status);
-
-	switch(id & 0xFF00)
+	switch(rxHeader.ExtId & 0xFF00)
 	{
 	case 0x0900:
-
+		vesc_status.rpm = *(uint32_t*)&data[0];
+		vesc_status.current = (data[4] << 8) | data[5];
+		vesc_status.duty = (data[6] << 8) | data[7];
 		break;
 	case 0x0E00:
-
+		vesc_status.ah = *(uint32_t*)&data[0];
+		vesc_status.ah_cap = *(uint32_t*)&data[4];
 		break;
 	case 0x0F00:
-
+		vesc_status.wh = *(uint32_t*)&data[0];
+		vesc_status.wh_cap = *(uint32_t*)&data[4];
 		break;
 	case 0x1000:
-
+		vesc_status.temp_fet = (data[0] << 8) | data[1];
+		vesc_status.temp_motor = (data[2] << 8) | data[3];
+		vesc_status.current_in = (data[4] << 8) | data[5];
+		vesc_status.pid_pos_now = (data[6] << 8) | data[7];
 		break;
 	case 0x1b00:
-
+		vesc_status.tacho_value = *(uint32_t*)&data[0];
+		vesc_status.v_in = (data[4] << 8) | data[5];
 		break;
 	default:
-		return -1;
+		return;
 		break;
 	}
 
+	return;
+}
+
+int get_vesc_data(uint32_t *result, int num)
+{
+	*result = *((uint32_t*)&vesc_status)+num;
 	return 0;
 }

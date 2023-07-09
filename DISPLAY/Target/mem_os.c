@@ -18,6 +18,8 @@
 #include "mem_os.h"
 #include "mem_conf.h"
 
+#include <cmsis_os2.h>
+
 /** @addtogroup MEM OS Wrapper
   * @{
   */
@@ -59,7 +61,7 @@
 /** @defgroup MEM_OS_Private_Variables Private Variables
   * @{
   */
-static volatile uint8_t mem_sem[MEM_INSTANCES_NBR];
+static osSemaphoreId_t MEM_OS_Sem[MEM_INSTANCES_NBR];
 
 /**
   * @}
@@ -70,21 +72,12 @@ static volatile uint8_t mem_sem[MEM_INSTANCES_NBR];
   * @{
   */
 
+/**
+  * @}
+  */
+
 /* Exported variables --------------------------------------------------------*/
 /** @defgroup MEM_OS_Exported_Variables Exported Variables
-  * @{
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/* Deprecated functions ------------------------------------------------------*/
-/** @defgroup MEM_OS_Deprecated_Functions Deprecated Functions
   * @{
   */
 
@@ -100,22 +93,39 @@ static volatile uint8_t mem_sem[MEM_INSTANCES_NBR];
   * @}
   */
 
+/* Deprecated functions ------------------------------------------------------*/
+/** @defgroup MEM_OS_Deprecated_Functions Deprecated Functions
+  * @{
+  */
+
+/**
+  * @}
+  */
+
 /* Exported functions --------------------------------------------------------*/
 /** @defgroup MEM_OS_Exported_Functions Exported Functions
   * @{
   */
+
 /**
   * @brief  Initialize the MEM OS ressources.
   * @param  Instance MEM Instance
-  * @retval MEM_OS_Error_t
+  * @retval None
   */
 uint8_t MEM_OS_Initialize(uint32_t Instance)
 {
   uint8_t i;
+
   for(i = 0; i < MEM_INSTANCES_NBR; i++)
   {
-    mem_sem[i] = 0;
+    /* Create Binary Semaphore */
+    MEM_OS_Sem[i] = osSemaphoreNew(1, 1, NULL);
+    if(MEM_OS_Sem[i] == NULL)
+    {
+      return MEM_OS_ERROR_INIT;
+    }
   }
+
   return MEM_OS_ERROR_NONE;
 }
 
@@ -126,8 +136,10 @@ uint8_t MEM_OS_Initialize(uint32_t Instance)
   */
 uint8_t MEM_OS_Lock(uint32_t Instance)
 {
-  while(mem_sem[Instance]);
-  mem_sem[Instance] = 1;
+  if (osSemaphoreAcquire(MEM_OS_Sem[Instance], osWaitForever) != osOK)
+  {
+    return MEM_OS_ERROR_LOCK;
+  }
   return MEM_OS_ERROR_NONE;
 }
 
@@ -138,7 +150,10 @@ uint8_t MEM_OS_Lock(uint32_t Instance)
   */
 uint8_t MEM_OS_Unlock(uint32_t Instance)
 {
-  mem_sem[Instance] = 0;
+  if (osSemaphoreRelease(MEM_OS_Sem[Instance]) != osOK)
+  {
+    return MEM_OS_ERROR_UNLOCK;
+  }
   return MEM_OS_ERROR_NONE;
 }
 
@@ -149,7 +164,10 @@ uint8_t MEM_OS_Unlock(uint32_t Instance)
   */
 uint8_t MEM_OS_UnlockFromISR(uint32_t Instance)
 {
-  mem_sem[Instance] = 0;
+  if (osSemaphoreRelease(MEM_OS_Sem[Instance]) != osOK)
+  {
+    return MEM_OS_ERROR_UNLOCK;
+  }
   return MEM_OS_ERROR_NONE;
 }
 
@@ -162,29 +180,11 @@ uint8_t MEM_OS_UnlockFromISR(uint32_t Instance)
   */
 uint8_t MEM_OS_TryLock(uint32_t Instance, uint32_t Timeout)
 {
-  uint32_t tickstart = HAL_GetTick();
-
-  if(mem_sem[Instance] == 0)
-  {
-    mem_sem[Instance] = 1;
-    return MEM_OS_ERROR_NONE;
-  }
-  else if(Timeout == 0)
+  if (osSemaphoreAcquire(MEM_OS_Sem[Instance], Timeout) != osOK)
   {
     return MEM_OS_ERROR_BUSY;
   }
-  else
-  {
-    do
-    {
-      if(mem_sem[Instance] == 0)
-      {
-        mem_sem[Instance] = 1;
-        return MEM_OS_ERROR_NONE;
-      }
-    } while ((HAL_GetTick() - tickstart) < Timeout);
-    return MEM_OS_ERROR_BUSY;
-  }
+  return MEM_OS_ERROR_NONE;
 }
 
 /**
@@ -194,7 +194,14 @@ uint8_t MEM_OS_TryLock(uint32_t Instance, uint32_t Timeout)
   */
 uint8_t MEM_OS_IsLocked(uint32_t Instance)
 {
-  return mem_sem[Instance];
+  if (osSemaphoreAcquire(MEM_OS_Sem[Instance], 0) == osOK)
+  {
+    if (osSemaphoreRelease(MEM_OS_Sem[Instance]) == osOK)
+    {
+      return 0;
+    }
+  }
+  return 1;
 }
 
 /**
@@ -204,8 +211,14 @@ uint8_t MEM_OS_IsLocked(uint32_t Instance)
   */
 uint8_t MEM_OS_WaitForTransferToBeDone(uint32_t Instance)
 {
-  while(mem_sem[Instance]);
-  return MEM_OS_ERROR_NONE;
+  if (osSemaphoreAcquire(MEM_OS_Sem[Instance], osWaitForever) == osOK)
+  {
+    if (osSemaphoreRelease(MEM_OS_Sem[Instance]) == osOK)
+    {
+      return MEM_OS_ERROR_NONE;
+    }
+  }
+  return MEM_OS_ERROR_WAIT;
 }
 
 /**
