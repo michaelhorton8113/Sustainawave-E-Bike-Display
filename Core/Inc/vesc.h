@@ -8,9 +8,6 @@
 #ifndef INC_VESC_H_
 #define INC_VESC_H_
 
-#include <stdio.h>
-#include <stdint.h>
-
 #include "stm32l4xx_hal.h"
 
 typedef struct VESC_Status {

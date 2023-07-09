@@ -34,7 +34,7 @@ extern "C" {
 #include "key_io.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "vesc.h"
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

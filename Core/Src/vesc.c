@@ -102,6 +102,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 int get_can_data(uint32_t id)
 {
+	UNUSED(status);
+
 	switch(id & 0xFF00)
 	{
 	case 0x0900:
@@ -123,4 +125,6 @@ int get_can_data(uint32_t id)
 		return -1;
 		break;
 	}
+
+	return 0;
 }
