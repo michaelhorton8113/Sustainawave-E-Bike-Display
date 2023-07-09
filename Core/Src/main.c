@@ -27,7 +27,6 @@
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
-typedef StaticQueue_t osStaticMessageQDef_t;
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -60,17 +59,6 @@ const osThreadAttr_t displayTask_attributes = {
   .name = "displayTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
-};
-/* Definitions for canQueue */
-osMessageQueueId_t canQueueHandle;
-uint8_t canQueueBuffer[ 16 * sizeof( CAN_RxHeaderTypeDef ) ];
-osStaticMessageQDef_t canQueueControlBlock;
-const osMessageQueueAttr_t canQueue_attributes = {
-  .name = "canQueue",
-  .cb_mem = &canQueueControlBlock,
-  .cb_size = sizeof(canQueueControlBlock),
-  .mq_mem = &canQueueBuffer,
-  .mq_size = sizeof(canQueueBuffer)
 };
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
@@ -148,10 +136,6 @@ int main(void)
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
-
-  /* Create the queue(s) */
-  /* creation of canQueue */
-  canQueueHandle = osMessageQueueNew (16, sizeof(CAN_RxHeaderTypeDef), &canQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
