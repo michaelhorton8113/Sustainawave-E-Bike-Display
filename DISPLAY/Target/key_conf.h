@@ -25,7 +25,7 @@
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32l4xx.h"
+#include "stm32f4xx.h"
 
 /* KEY_CENTER Pin mapping */
 #define KEY_CENTER_GPIO_PORT     GPIOC

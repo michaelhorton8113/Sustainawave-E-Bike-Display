@@ -25,8 +25,8 @@
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32l4xx.h"
-#include "stm32l4xx_nucleo_bus.h"
+#include "stm32f4xx.h"
+#include "custom_bus.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -78,7 +78,7 @@ extern  DMA_HandleTypeDef                   hdma_spi2_tx;
 
 /* Exported macro ------------------------------------------------------------*/
 /* Chip Select macro definition */
-#define MEM_CS_LOW()                        WRITE_REG(GPIOA->BRR, GPIO_PIN_8)
+#define MEM_CS_LOW()                        WRITE_REG(GPIOA->BSRR, (uint32_t)GPIO_PIN_8 << 16)
 #define MEM_CS_HIGH()                       WRITE_REG(GPIOA->BSRR, GPIO_PIN_8)
 
 /* USER CODE BEGIN EM */

@@ -27,14 +27,14 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32l4xx_hal.h"
+#include "stm32f4xx_hal.h"
 
 #include "lcd_io.h"
 #include "mem_io.h"
 #include "key_io.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "vesc.h"
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -62,6 +62,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define BUTTON_USER_Pin GPIO_PIN_13
 #define BUTTON_USER_GPIO_Port GPIOC
+#define MCO_Pin GPIO_PIN_0
+#define MCO_GPIO_Port GPIOH
 #define JOY_UP_Pin GPIO_PIN_0
 #define JOY_UP_GPIO_Port GPIOC
 #define SPIB_MISO_Pin GPIO_PIN_2

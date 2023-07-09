@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "vesc.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,6 +47,10 @@ TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
+uint8_t RxData[8];
+
+// Define a global variable to store the received VESC message
+uint8_t vescMessage[8];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -80,6 +84,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -96,16 +101,16 @@ int main(void)
   MX_CAN1_Init();
   MX_DISPLAY_Init();
   /* USER CODE BEGIN 2 */
-
-  /* Start VESC communication */
-  vesc_init(&hcan1);
+  // Start the CAN peripheral
+   HAL_CAN_Start(&hcan1);
+   // Enable the CAN RX interrupt
+   HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_Delay(400);
     /* USER CODE END WHILE */
 
   MX_DISPLAY_Process();
@@ -340,7 +345,48 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void sendVESCMessage(uint8_t TA)
+{
+  CAN_TxHeaderTypeDef txHeader;
+  uint8_t txData[8] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08} ;
+  uint32_t txMailbox;
 
+  //txData[2] = TA;
+
+  txHeader.StdId = 38; // Replace with the actual CAN ID of the VESC
+  txHeader.ExtId = 0x01;
+  txHeader.RTR = CAN_RTR_DATA;
+  txHeader.IDE = CAN_ID_STD;
+  txHeader.DLC = 2;
+  //txHeader.TransmitGlobalTime = DISABLE;
+
+  if (HAL_CAN_AddTxMessage(&hcan1, &txHeader, txData, &txMailbox) != HAL_OK)
+  {
+    // Error occurred while adding CAN message to the transmit mailbox
+    Error_Handler();
+  }
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+  CAN_RxHeaderTypeDef rxHeader;
+
+  if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, RxData) != HAL_OK)
+  {
+    // Error occurred while receiving CAN message
+    Error_Handler();
+  }
+
+  // Check if the received message is from the VESC (assuming VESC has a specific CAN ID) - using 101 -> change to actual ID
+  if (rxHeader.StdId == 38)
+  {
+    // Copy the received VESC message to vescMessage array
+    for (int i = 0; i < 8; i++)
+    {
+      vescMessage[i] = RxData[i];
+    }
+  }
+}
 /* USER CODE END 4 */
 
 /**
