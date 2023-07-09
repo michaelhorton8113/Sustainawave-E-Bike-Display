@@ -1,0 +1,4 @@
+../DISPLAY/Target/key_io.c:89:9:BSP_KEY_Init	24	static
+../DISPLAY/Target/key_io.c:105:9:BSP_KEY_DeInit	24	static
+../DISPLAY/Target/key_io.c:122:9:BSP_KEY_SetOrientation	24	static
+../DISPLAY/Target/key_io.c:142:9:BSP_KEY_GetState	16	static

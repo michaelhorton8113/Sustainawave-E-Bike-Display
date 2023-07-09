@@ -1,0 +1,6 @@
+../Core/Src/vesc.c:19:6:vesc_init	56	static
+../Core/Src/vesc.c:38:6:sendVESCMessage	56	static
+../Core/Src/vesc.c:58:6:vesc_transmit	40	static,ignoring_inline_asm
+../Core/Src/vesc.c:78:6:HAL_CAN_TxMailbox1CompleteCallback	16	static,ignoring_inline_asm
+../Core/Src/vesc.c:83:6:HAL_CAN_RxFifo0MsgPendingCallback	48	static
+../Core/Src/vesc.c:103:5:get_can_data	16	static

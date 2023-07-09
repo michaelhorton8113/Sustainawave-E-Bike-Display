@@ -1,0 +1,7 @@
+../DISPLAY/Target/mem_os.c:112:9:MEM_OS_Initialize	24	static
+../DISPLAY/Target/mem_os.c:127:9:MEM_OS_Lock	16	static
+../DISPLAY/Target/mem_os.c:139:9:MEM_OS_Unlock	16	static
+../DISPLAY/Target/mem_os.c:150:9:MEM_OS_UnlockFromISR	16	static
+../DISPLAY/Target/mem_os.c:163:9:MEM_OS_TryLock	24	static
+../DISPLAY/Target/mem_os.c:195:9:MEM_OS_IsLocked	16	static
+../DISPLAY/Target/mem_os.c:205:9:MEM_OS_WaitForTransferToBeDone	16	static

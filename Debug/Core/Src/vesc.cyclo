@@ -1,0 +1,6 @@
+vesc.c:19:6:vesc_init	1
+vesc.c:38:6:sendVESCMessage	1
+vesc.c:58:6:vesc_transmit	2
+vesc.c:78:6:HAL_CAN_TxMailbox1CompleteCallback	1
+vesc.c:83:6:HAL_CAN_RxFifo0MsgPendingCallback	3
+vesc.c:103:5:get_can_data	9

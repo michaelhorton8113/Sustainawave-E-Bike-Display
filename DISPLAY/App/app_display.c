@@ -306,6 +306,7 @@ void MX_DISPLAY_Init(void)
 void MX_DISPLAY_Process(void)
 {
   /* USER CODE BEGIN MX_DISPLAY_Process */
+<<<<<<< Updated upstream
 
     UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
     UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
@@ -336,6 +337,98 @@ void MX_DISPLAY_Process(void)
     UTIL_LCD_DisplayStringAt(5, 200, (uint8_t *)"Available Power:", LEFT_MODE);
     UTIL_LCD_DisplayStringAt(5 + strlen("Available Power: ") * UTIL_LCD_GetFont()->Width, 200, (uint8_t *)buffer, LEFT_MODE);
     memset(buffer, 0, sizeof(buffer));
+=======
+	if (BSP_KEY_GetState(0, &key) == BSP_ERROR_NONE) {
+			if (key == BSP_KEY_CENTER) {
+				handleButtonClick();
+				UTIL_LCD_Clear(UTIL_LCD_COLOR_TRANSPARENT);
+			}
+		}
+
+			// Update and display the current screen
+			switch (currentScreen) {
+			case SPEED_SCREEN:
+				UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_GREEN);
+
+				UTIL_LCD_SetFont(&Font24);
+				UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+
+				snprintf(buffer, sizeof(buffer), "%d", vescMessage[8]);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+				UTIL_LCD_SetFont(&Font20);
+				UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "SPEED", LEFT_MODE);
+				UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "KM/H", RIGHT_MODE);
+				UTIL_LCD_SetFont(&Font48);
+				UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
+				memset(buffer, 0, sizeof(buffer));
+				UTIL_LCD_FillRect(280, 10, 30, 15, 0x07E0);
+				break;
+			case ASSIST_SCREEN:
+				UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+
+				UTIL_LCD_SetFont(&Font24);
+				UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+
+				snprintf(buffer, sizeof(buffer), "%d", assist_level);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+				UTIL_LCD_SetFont(&Font20);
+				UTIL_LCD_DisplayStringAt(0, 80, (uint8_t*) "ASSIST LEVEL", CENTER_MODE);
+				UTIL_LCD_SetFont(&Font48);
+				UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
+				memset(buffer, 0, sizeof(buffer));
+				break;
+			case BATTERY_SCREEN:
+				UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+
+				UTIL_LCD_SetFont(&Font24);
+				UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+
+				snprintf(buffer, sizeof(buffer), "%d", battery_level);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+				UTIL_LCD_SetFont(&Font20);
+				UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "BATTERY LEVEL", LEFT_MODE);
+				UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "%", RIGHT_MODE);
+				UTIL_LCD_SetFont(&Font48);
+				UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
+				memset(buffer, 0, sizeof(buffer));
+				break;
+			case POWER_SCREEN:
+				UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_BLACK);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+
+				UTIL_LCD_SetFont(&Font24);
+				UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+
+				snprintf(buffer, sizeof(buffer), "%d", available_power);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+				UTIL_LCD_SetFont(&Font20);
+				UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "AVAILABLE POWER", LEFT_MODE);
+				UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "W", RIGHT_MODE);
+				UTIL_LCD_SetFont(&Font48);
+				UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
+				memset(buffer, 0, sizeof(buffer));
+				break;
+			default:
+				UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+
+				UTIL_LCD_SetFont(&Font24);
+				UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+
+				snprintf(buffer, sizeof(buffer), "%d", speed);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+				UTIL_LCD_SetFont(&Font20);
+				UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "SPEED", LEFT_MODE);
+				UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "KM/H", RIGHT_MODE);
+				UTIL_LCD_SetFont(&Font48);
+				UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
+				memset(buffer, 0, sizeof(buffer));
+				break;
+			}
+>>>>>>> Stashed changes
   /* USER CODE END MX_DISPLAY_Process */
 }
 

@@ -1,0 +1,4 @@
+key_io.c:89:9:BSP_KEY_Init	1
+key_io.c:105:9:BSP_KEY_DeInit	1
+key_io.c:122:9:BSP_KEY_SetOrientation	2
+key_io.c:142:9:BSP_KEY_GetState	23
