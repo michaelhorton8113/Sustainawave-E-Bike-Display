@@ -1,3 +1,8 @@
-../DISPLAY/App/app_display.c:62:6:MX_DISPLAY_Init	8	static
-../DISPLAY/App/app_display.c:87:6:MX_DISPLAY_Process	4	static
-../DISPLAY/App/app_display.c:94:6:BSP_LCD_SignalTearingEffectEvent	16	static
+../DISPLAY/App/app_display.c:158:16:BSP_LCD_FillRGBRect2	48	static
+../DISPLAY/App/app_display.c:179:16:BSP_LCD_FillRect	64	static
+../DISPLAY/App/app_display.c:224:16:BSP_LCD_GetPixelFormat	24	static
+../DISPLAY/App/app_display.c:237:13:BSP_LCD_Clear	32	static
+../DISPLAY/App/app_display.c:242:6:handleButtonClick	4	static
+../DISPLAY/App/app_display.c:256:6:MX_DISPLAY_Init	16	static
+../DISPLAY/App/app_display.c:291:6:MX_DISPLAY_Process	16	static
+../DISPLAY/App/app_display.c:387:6:BSP_LCD_SignalTearingEffectEvent	16	static

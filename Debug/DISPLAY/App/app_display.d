@@ -37,7 +37,8 @@ DISPLAY/App/app_display.o: ../DISPLAY/App/app_display.c \
  ../DISPLAY/Target/mem_io.h ../Drivers/BSP/Components/Common/mem.h \
  ../DISPLAY/Target/mem_conf.h \
  ../Drivers/BSP/Components/mx25l6433f/../mx25l6433f/mx25l6433f.h \
- ../DISPLAY/Target/key_io.h ../DISPLAY/Target/key_conf.h
+ ../DISPLAY/Target/key_io.h ../DISPLAY/Target/key_conf.h \
+ ../Core/Inc/stm32_lcd.h ../Core/Inc/fonts.h
 ../DISPLAY/App/app_display.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal.h:
@@ -83,3 +84,5 @@ DISPLAY/App/app_display.o: ../DISPLAY/App/app_display.c \
 ../Drivers/BSP/Components/mx25l6433f/../mx25l6433f/mx25l6433f.h:
 ../DISPLAY/Target/key_io.h:
 ../DISPLAY/Target/key_conf.h:
+../Core/Inc/stm32_lcd.h:
+../Core/Inc/fonts.h:
