@@ -26,12 +26,12 @@
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+#include <stdint.h>
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+extern uint8_t vescMessage[8];
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

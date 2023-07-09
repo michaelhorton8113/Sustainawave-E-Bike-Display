@@ -26,6 +26,7 @@
 #include "string.h"
 #include "stdbool.h"
 #include "stm32_lcd.h"
+#include "vesc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -302,7 +303,7 @@ void MX_DISPLAY_Process(void)
 			switch (currentScreen) {
 			case SPEED_SCREEN:
 				UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
-				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_GREEN);
 
 				UTIL_LCD_SetFont(&Font24);
 				UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
@@ -349,7 +350,7 @@ void MX_DISPLAY_Process(void)
 				memset(buffer, 0, sizeof(buffer));
 				break;
 			case POWER_SCREEN:
-				UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+				UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_BLACK);
 				UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
 
 				UTIL_LCD_SetFont(&Font24);
