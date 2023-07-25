@@ -44,6 +44,8 @@
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
 
+RTC_HandleTypeDef hrtc;
+
 TIM_HandleTypeDef htim2;
 
 /* Definitions for defaultTask */
@@ -51,14 +53,24 @@ osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for displayTask */
 osThreadId_t displayTaskHandle;
 const osThreadAttr_t displayTask_attributes = {
   .name = "displayTask",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for screen_update */
+osMutexId_t screen_updateHandle;
+const osMutexAttr_t screen_update_attributes = {
+  .name = "screen_update"
+};
+/* Definitions for display_refresh */
+osSemaphoreId_t display_refreshHandle;
+const osSemaphoreAttr_t display_refresh_attributes = {
+  .name = "display_refresh"
 };
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
@@ -70,6 +82,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_CAN1_Init(void);
+static void MX_RTC_Init(void);
 void StartDefaultTask(void *argument);
 void DISPLAY_Task(void *argument);
 
@@ -112,6 +125,7 @@ int main(void)
   MX_DMA_Init();
   MX_TIM2_Init();
   MX_CAN1_Init();
+  MX_RTC_Init();
   MX_DISPLAY_Init();
   /* Call PreOsInit function */
   MX_DISPLAY_PreOSInit();
@@ -124,10 +138,17 @@ int main(void)
 
   /* Init scheduler */
   osKernelInitialize();
+  /* Create the mutex(es) */
+  /* creation of screen_update */
+  screen_updateHandle = osMutexNew(&screen_update_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of display_refresh */
+  display_refreshHandle = osSemaphoreNew(1, 1, &display_refresh_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -189,9 +210,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 1;
@@ -253,6 +275,42 @@ static void MX_CAN1_Init(void)
   /* USER CODE BEGIN CAN1_Init 2 */
 
   /* USER CODE END CAN1_Init 2 */
+
+}
+
+/**
+  * @brief RTC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RTC_Init(void)
+{
+
+  /* USER CODE BEGIN RTC_Init 0 */
+
+  /* USER CODE END RTC_Init 0 */
+
+  /* USER CODE BEGIN RTC_Init 1 */
+
+  /* USER CODE END RTC_Init 1 */
+
+  /** Initialize RTC Only
+  */
+  hrtc.Instance = RTC;
+  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
+  hrtc.Init.AsynchPrediv = 127;
+  hrtc.Init.SynchPrediv = 255;
+  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
+  hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_NONE;
+  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
+  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RTC_Init 2 */
+
+  /* USER CODE END RTC_Init 2 */
 
 }
 
@@ -348,8 +406,10 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SPIA_DCX_GPIO_Port, SPIA_DCX_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : BUTTON_USER_Pin JOY_UP_Pin JOY_CENTER_Pin */
-  GPIO_InitStruct.Pin = BUTTON_USER_Pin|JOY_UP_Pin|JOY_CENTER_Pin;
+  /*Configure GPIO pins : BUTTON_USER_Pin JOY_UP_Pin JOY_CENTER_Pin BUTTON_RIGHT_Pin
+                           BUTTON_LEFT_Pin BUTTON_MIDDLE_Pin */
+  GPIO_InitStruct.Pin = BUTTON_USER_Pin|JOY_UP_Pin|JOY_CENTER_Pin|BUTTON_RIGHT_Pin
+                          |BUTTON_LEFT_Pin|BUTTON_MIDDLE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);

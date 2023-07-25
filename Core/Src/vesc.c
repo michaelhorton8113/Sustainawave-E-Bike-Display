@@ -7,12 +7,13 @@
 
 #include "vesc.h"
 
+#include "settings.h"
+
 uint8_t RxData[8];
-uint8_t vesc_id = 0x17;
 
 // Globally visible status
 // TODO Should probably deal with this better
-VESC_Status vesc_status;
+volatile VESC_Status vesc_status;
 
 static CAN_HandleTypeDef *vesc_can;
 
@@ -28,7 +29,7 @@ void vesc_init(CAN_HandleTypeDef *can_handle)
   filter.FilterMaskIdHigh = 0;
   filter.FilterMaskIdLow = 0;
   filter.FilterIdHigh = 0;
-  filter.FilterIdLow = vesc_id;
+  filter.FilterIdLow = get_setting(VescID);
   filter.FilterMode = CAN_FILTERMODE_IDMASK;
   filter.FilterScale = CAN_FILTERSCALE_32BIT;
 
@@ -57,22 +58,21 @@ void sendVESCMessage(uint8_t TA)
   }
 }
 
-void vesc_transmit(void)
+void vesc_transmit(uint8_t command, uint8_t * data)
 {
   CAN_TxHeaderTypeDef header;
-  header.StdId = 41;
-  header.ExtId = 41;
-  header.IDE = CAN_ID_STD;
+  header.StdId = 0;
+  header.ExtId = get_setting(VescID) | (command << 8);
+  header.IDE = CAN_ID_EXT;
   header.RTR = CAN_RTR_DATA;
   header.DLC = 1;
   header.TransmitGlobalTime = DISABLE;
 
   uint32_t mailbox;
-  uint8_t can_data = 0x69;
   HAL_CAN_ActivateNotification(vesc_can, CAN_IT_TX_MAILBOX_EMPTY);
 
   // Transmit one message
-  if(HAL_CAN_AddTxMessage(vesc_can, &header, &can_data, &mailbox) != HAL_OK) {
+  if(HAL_CAN_AddTxMessage(vesc_can, &header, data, &mailbox) != HAL_OK) {
 	  __asm__("nop");
   }
 }
@@ -95,17 +95,18 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	switch(rxHeader.ExtId & 0xFF00)
 	{
 	case 0x0900:
-		vesc_status.rpm = *(uint32_t*)&data[0];
+		vesc_status.rpm = data[3] | (data[2] << 8) | (data[1] << 16) | (data[0] << 24);
+		vesc_status.rpm /= 35;
 		vesc_status.current = (data[4] << 8) | data[5];
 		vesc_status.duty = (data[6] << 8) | data[7];
 		break;
 	case 0x0E00:
-		vesc_status.ah = *(uint32_t*)&data[0];
-		vesc_status.ah_cap = *(uint32_t*)&data[4];
+		vesc_status.ah = data[3] | (data[2] << 8) | (data[1] << 16) | (data[0] << 24);
+		vesc_status.ah_cap = data[7] | (data[6] << 8) | (data[5] << 16) | (data[4] << 24);
 		break;
 	case 0x0F00:
-		vesc_status.wh = *(uint32_t*)&data[0];
-		vesc_status.wh_cap = *(uint32_t*)&data[4];
+		vesc_status.wh = data[3] | (data[2] << 8) | (data[1] << 16) | (data[0] << 24);
+		vesc_status.wh_cap = data[7] | (data[6] << 8) | (data[5] << 16) | (data[4] << 24);
 		break;
 	case 0x1000:
 		vesc_status.temp_fet = (data[0] << 8) | data[1];
@@ -114,7 +115,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 		vesc_status.pid_pos_now = (data[6] << 8) | data[7];
 		break;
 	case 0x1b00:
-		vesc_status.tacho_value = *(uint32_t*)&data[0];
+		vesc_status.tacho_value = data[3] | (data[2] << 8) | (data[1] << 16) | (data[0] << 24);
 		vesc_status.v_in = (data[4] << 8) | data[5];
 		break;
 	default:

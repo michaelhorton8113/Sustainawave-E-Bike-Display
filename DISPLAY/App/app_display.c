@@ -23,10 +23,16 @@
 #include "mem_io.h"
 #include "lcd_io.h"
 /* USER CODE BEGIN Includes */
+#include <math.h>
+#include "cmsis_os.h"
+
 #include "string.h"
 #include "stdbool.h"
 #include "stm32_lcd.h"
 #include "vesc.h"
+#include "bike.h"
+#include "buttons.h"
+#include "settings.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,13 +58,6 @@ typedef struct block_s {
 	uint16_t bottom_line;
 	uint8_t *memory;
 } block_t;
-
-typedef enum {
-    SPEED_SCREEN,
-    ASSIST_SCREEN,
-    BATTERY_SCREEN,
-    POWER_SCREEN
-} ScreenType;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -71,6 +70,8 @@ typedef enum {
 #define COMPANY_NAME				(uint8_t *)"SUSTAINAWAVE"
 #define EXPANSION_BOARD_NAME        (uint8_t *)"X-NUCLEO-GFX01M2"
 #endif /* UTIL_LCD_DEFAULT_FONT */
+#define BATTERY_X (175)
+#define BATTERY_Y (40)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -95,24 +96,26 @@ typedef enum {
 /* USER CODE BEGIN PV */
 uint8_t __IO TransferAllowed = 0;
 static uint8_t CacheBuffer[BUFFER_CACHE_COUNT][(320 * 2 * BUFFER_CACHE_LINES)];
-//static block_t memory_blocks[BUFFER_CACHE_COUNT];
 //static uint16_t posy0 = 0;
 static uint16_t posx = 0;
 static uint16_t posy = 0;
-static uint8_t key = 1;
 //static uint8_t image_id = 0;
 static uint32_t LCD_Width = 0;
 static uint32_t LCD_Height = 0;
 static uint32_t LCD_Orientation = 0;
 //static uint8_t orientation_id = 0;
-static uint8_t speed = 0;
-static uint8_t assist_level = 0;
-static uint8_t battery_level = 0;
+//static uint32_t speed_hundreds = 10;
+//static uint32_t speed_tens = 10;
+//static uint32_t speed_ones = 10;
+static uint8_t assist_level = 3;
+
+static uint8_t company_name[13] = "SUSTAINAWAVE";
+//static uint8_t battery_level = 0;
 static uint8_t available_power = 0;
+static uint32_t setting_selected = 0;
+
 static char buffer[16];
 
-//static int drawing_block_idx = 0;
-//static int display_block_idx = 0;
 static __IO uint16_t tearing_effect_counter = 0;
 
 //static const orientation_t orientations[] = { { LCD_ORIENTATION_PORTRAIT,
@@ -121,7 +124,8 @@ static __IO uint16_t tearing_effect_counter = 0;
 		//KEY_ORIENTATION_PORTRAIT_ROT180 }, { LCD_ORIENTATION_LANDSCAPE_ROT180,
 		//KEY_ORIENTATION_LANDSCAPE_ROT180 } };
 
-ScreenType currentScreen = SPEED_SCREEN;
+ScreenType current_screen = ScreenSpeed;
+ScreenType old_screen = ScreenSpeed;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -137,7 +141,12 @@ static int32_t BSP_LCD_FillRGBRect2(uint32_t Instance, uint32_t Xpos,
 
 static int32_t BSP_LCD_GetPixelFormat(uint32_t Instance, uint32_t *PixelFormat);
 
-static void handleButtonClick(void);
+static bool setup_display(ScreenType screen);
+static bool display_speed(void);
+static bool display_assist(void);
+static bool display_power(void);
+static bool display_battery(void);
+static bool display_settings(bool editing);
 
 static const LCD_UTILS_Drv_t LCD_Driver = {
 NULL, /* DrawBitmap   */
@@ -240,15 +249,6 @@ static void BSP_LCD_Clear(uint32_t Instance, uint32_t Xpos, uint32_t Ypos,
 	BSP_LCD_FillRect(Instance, Xpos, Ypos, Width, Height, 0);
 }
 
-void handleButtonClick() {
-    // Increment the current screen
-    currentScreen++;
-
-    // If the current screen exceeds the maximum screen, wrap back to the first screen
-    if (currentScreen > POWER_SCREEN) {
-        currentScreen = SPEED_SCREEN;
-    }
-}
 /* USER CODE END 0 */
 
 /**
@@ -271,7 +271,7 @@ void MX_DISPLAY_PreOSInit(void)
 void MX_DISPLAY_Init(void)
 {
   /* USER CODE BEGIN MX_DISPLAY_Init 0 */
-
+  init_settings();
   /* USER CODE END MX_DISPLAY_Init 0 */
   if(BSP_LCD_Init(0, LCD_ORIENTATION_PORTRAIT) != BSP_ERROR_NONE)
   {
@@ -297,6 +297,8 @@ void MX_DISPLAY_Init(void)
 	}
 
 	UTIL_LCD_SetFuncDriver(&LCD_Driver);
+
+	setup_display(get_screen());
   /* USER CODE END MX_DISPLAY_Init 1 */
 }
 
@@ -308,96 +310,41 @@ void DISPLAY_Task(void *argument)
   /* USER CODE BEGIN DISPLAY_Task */
 	for(;;)
 	{
-		if (BSP_KEY_GetState(0, &key) == BSP_ERROR_NONE) {
-			if (key == BSP_KEY_CENTER) {
-				handleButtonClick();
-				UTIL_LCD_Clear(UTIL_LCD_COLOR_TRANSPARENT);
-			}
+		ScreenType screen = get_screen();
+		if(screen != old_screen)
+		{
+			// Update current display
+			old_screen = screen;
+			// Setup new display
+			setup_display(screen);
 		}
 
 		// Update and display the current screen
-		switch (currentScreen) {
-		case SPEED_SCREEN:
-			UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
-
-			UTIL_LCD_SetFont(&Font24);
-			UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
-
-			//snprintf(buffer, sizeof(buffer), "%d", vescMessage[8]);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-			UTIL_LCD_SetFont(&Font20);
-			UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "SPEED", LEFT_MODE);
-			UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "KM/H", RIGHT_MODE);
-			UTIL_LCD_SetFont(&Font48);
-			UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
-			memset(buffer, 0, sizeof(buffer));
-			UTIL_LCD_FillRect(280, 10, 30, 15, 0x07E0);
+		switch (screen) {
+		case ScreenSpeed:
+			display_speed();
 			break;
-		case ASSIST_SCREEN:
-			UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
-
-			UTIL_LCD_SetFont(&Font24);
-			UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
-
-			snprintf(buffer, sizeof(buffer), "%d", assist_level);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-			UTIL_LCD_SetFont(&Font20);
-			UTIL_LCD_DisplayStringAt(0, 80, (uint8_t*) "ASSIST LEVEL", CENTER_MODE);
-			UTIL_LCD_SetFont(&Font48);
-			UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
-			memset(buffer, 0, sizeof(buffer));
+		case ScreenAssist:
+			display_assist();
 			break;
-		case BATTERY_SCREEN:
-			UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
-
-			UTIL_LCD_SetFont(&Font24);
-			UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
-
-			snprintf(buffer, sizeof(buffer), "%d", battery_level);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-			UTIL_LCD_SetFont(&Font20);
-			UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "BATTERY LEVEL", LEFT_MODE);
-			UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "%", RIGHT_MODE);
-			UTIL_LCD_SetFont(&Font48);
-			UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
-			memset(buffer, 0, sizeof(buffer));
+		case ScreenBattery:
+			display_battery();
 			break;
-		case POWER_SCREEN:
-			UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
-
-			UTIL_LCD_SetFont(&Font24);
-			UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
-
-			snprintf(buffer, sizeof(buffer), "%d", available_power);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-			UTIL_LCD_SetFont(&Font20);
-			UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "AVAILABLE POWER", LEFT_MODE);
-			UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "W", RIGHT_MODE);
-			UTIL_LCD_SetFont(&Font48);
-			UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
-			memset(buffer, 0, sizeof(buffer));
+		case ScreenPower:
+			display_power();
+			break;
+		case ScreenSettings:
+			display_settings(0);
+			break;
+		case ScreenSettingsEditing:
+			display_settings(1);
 			break;
 		default:
-			UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
-
-			UTIL_LCD_SetFont(&Font24);
-			UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
-
-			snprintf(buffer, sizeof(buffer), "%d", speed);
-			UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-			UTIL_LCD_SetFont(&Font20);
-			UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "SPEED", LEFT_MODE);
-			UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "KM/H", RIGHT_MODE);
-			UTIL_LCD_SetFont(&Font48);
-			UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
-			memset(buffer, 0, sizeof(buffer));
+			display_speed();
 			break;
 		}
+
+		osSemaphoreAcquire(&display_refreshHandle, 0);
 	}
   /* USER CODE END DISPLAY_Task */
 }
@@ -413,6 +360,7 @@ void BSP_LCD_SignalTearingEffectEvent(uint32_t Instance, uint8_t state, uint16_t
       if(Line == 0)
       {
         /* TE event is received : allow display refresh */
+    	  osSemaphoreRelease(&display_refreshHandle);
       }
     }
     else
@@ -423,8 +371,238 @@ void BSP_LCD_SignalTearingEffectEvent(uint32_t Instance, uint8_t state, uint16_t
   }
 }
 
-/* USER CODE BEGIN 1 */
+bool update_screen(ScreenType screen)
+{
+	osMutexAcquire(&screen_updateHandle, 0);
+	current_screen = screen;
+	osMutexRelease(&screen_updateHandle);
+	return 0;
+}
 
+ScreenType get_screen(void)
+{
+	osMutexAcquire(&screen_updateHandle, 0);
+	ScreenType screen = current_screen;
+	osMutexRelease(&screen_updateHandle);
+	return screen;
+}
+
+/* USER CODE BEGIN 1 */
+static bool setup_display(ScreenType screen)
+{
+	// Clear screen so next data can be displayed
+	UTIL_LCD_Clear(UTIL_LCD_COLOR_BLACK);
+
+	// Depending on which screen
+	switch(screen)
+	{
+	case ScreenSpeed:
+		/* General text */
+		UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+
+		UTIL_LCD_SetFont(&Font24);
+		UTIL_LCD_DisplayStringAt(posx, posy, company_name, CENTER_MODE);
+		UTIL_LCD_SetFont(&Font20);
+		UTIL_LCD_DisplayStringAt(155, 144, (uint8_t*) "KM/", LEFT_MODE);
+		UTIL_LCD_DisplayStringAt(155, 168, (uint8_t*) "H", LEFT_MODE);
+
+		/* Battery */
+		/*
+		int battery = 0;
+		if(vesc_status.v_in >= 360 && vesc_status.v_in <= 420)
+			battery = discharge_curve[vesc_status.v_in - 360];
+		else
+			battery = 0;
+
+		UTIL_LCD_FillRect(BATTERY_X, BATTERY_Y, 52, 22, UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_FillRect(BATTERY_X-2, BATTERY_Y+6, 2, 10, UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_FillRect(161, 41, battery/2, 20, UTIL_LCD_COLOR_GREEN);
+		char battery_str[5];
+		snprintf(battery_str, sizeof(battery_str), "%d%%", battery);
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_SetFont(&Font16);
+		UTIL_LCD_DisplayStringAt((240 - BATTERY_X + 5), BATTERY_Y + 5, (uint8_t*)battery_str, RIGHT_MODE);
+		UTIL_LCD_DisplayStringAt(10, BATTERY_Y + 5, (uint8_t*) "4:38pm", LEFT_MODE);
+		*/
+
+		/* Assist */
+		char assist[7] = "ASSIST";
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+		UTIL_LCD_SetFont(&Font20);
+		UTIL_LCD_DisplayStringAt(10, 260, (uint8_t*)assist, LEFT_MODE);
+		for(int i = 4; i >= assist_level; i--)
+		{
+			UTIL_LCD_FillRect(10 + (i * 44), 290, 40, 20, UTIL_LCD_COLOR_TRANSPARENT);
+		}
+		for(int i = 0; i < assist_level; i++)
+		{
+			UTIL_LCD_FillRect(10 + (i * 44), 290, 40, 20, UTIL_LCD_COLOR_WHITE);
+		}
+
+		break;
+	case ScreenAssist:
+		UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+
+		UTIL_LCD_SetFont(&Font24);
+		UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+		break;
+	case ScreenPower:
+		UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+
+		UTIL_LCD_SetFont(&Font24);
+		UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+		break;
+	case ScreenBattery:
+		UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+
+		UTIL_LCD_SetFont(&Font24);
+		UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+		break;
+	case ScreenSettings:
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+		UTIL_LCD_SetFont(&Font24);
+		UTIL_LCD_DisplayStringAt(posx, posy, (uint8_t*)"Settings", CENTER_MODE);
+		UTIL_LCD_FillRect(5, 50, 4, 270, UTIL_LCD_COLOR_TRANSPARENT);
+		break;
+	case ScreenSettingsEditing:
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+		UTIL_LCD_SetFont(&Font24);
+		UTIL_LCD_FillRect(235, 50, 4, 270, UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_DisplayStringAt(posx, posy, (uint8_t*)"Settings", CENTER_MODE);
+		break;
+	}
+
+	return 0;
+}
+
+static int battery_old = 101;
+uint32_t refresh_count = 0;
+static bool display_speed(void)
+{
+	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+	UTIL_LCD_SetFont(&Font48);
+	UTIL_LCD_FillRect(80, 140, 75, 50, UTIL_LCD_COLOR_TRANSPARENT);
+	uint32_t speed_updated = (vesc_status.rpm * 60 * (get_setting(WheelSize) * M_PI)) / 100000;
+	char buffer[16];
+	snprintf(buffer, 16, "%lu", speed_updated);
+	UTIL_LCD_DisplayStringAt(100, 140, (uint8_t*)buffer, RIGHT_MODE);
+
+	snprintf(buffer, 16, "%lu", refresh_count++);
+	UTIL_LCD_DisplayStringAt(0, 190, (uint8_t*)buffer, RIGHT_MODE);
+
+	/* Battery */
+	int battery = 0;
+	if(vesc_status.v_in >= 360 && vesc_status.v_in <= 420)
+		battery = discharge_curve[vesc_status.v_in - 360];
+	else
+		battery = 0;
+	if(battery_old != battery)
+	{
+		// Display battery icon
+		UTIL_LCD_FillRect(BATTERY_X, BATTERY_Y, 52, 22, UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_FillRect(BATTERY_X+1 + (50 - (battery/2)), BATTERY_Y+1, battery/2, 20, UTIL_LCD_COLOR_GREEN);
+
+		// Display percentage
+		char battery_str[5];
+		snprintf(battery_str, sizeof(battery_str), "%d%%", battery);
+		UTIL_LCD_FillRect(BATTERY_X - 70, 40, 60, 20, UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_SetFont(&Font16);
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_DisplayStringAt((240 - BATTERY_X + 5), BATTERY_Y + 5, (uint8_t*)battery_str, RIGHT_MODE);
+		// Update old battery level
+		battery_old = battery;
+	}
+
+	/* Assist */
+	for(int i = 4; i >= assist_level; i--)
+	{
+		UTIL_LCD_FillRect(10 + (i * 44), 290, 40, 20, UTIL_LCD_COLOR_TRANSPARENT);
+	}
+	for(int i = 0; i < assist_level; i++)
+	{
+		UTIL_LCD_FillRect(10 + (i * 44), 290, 40, 20, UTIL_LCD_COLOR_WHITE);
+	}
+
+	vesc_status.rpm++;
+
+	return 0;
+}
+static bool display_assist(void)
+{
+	snprintf(buffer, sizeof(buffer), "%d", assist_level);
+	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+	UTIL_LCD_SetFont(&Font20);
+	UTIL_LCD_DisplayStringAt(0, 80, (uint8_t*) "ASSIST LEVEL", CENTER_MODE);
+	UTIL_LCD_SetFont(&Font48);
+	UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
+	memset(buffer, 0, sizeof(buffer));
+
+	return 0;
+}
+static bool display_power(void)
+{
+	snprintf(buffer, sizeof(buffer), "%d", available_power);
+	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+	UTIL_LCD_SetFont(&Font20);
+	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "AVAILABLE POWER", LEFT_MODE);
+	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "W", RIGHT_MODE);
+	UTIL_LCD_SetFont(&Font48);
+	UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
+	memset(buffer, 0, sizeof(buffer));
+
+	return 0;
+}
+
+static bool display_battery(void)
+{
+	int battery = 0;
+	if(vesc_status.v_in >= 360 && vesc_status.v_in <= 420)
+		battery = discharge_curve[vesc_status.v_in - 360];
+	else
+		battery = 0;
+
+	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+	UTIL_LCD_SetFont(&Font20);
+	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "BATTERY LEVEL", LEFT_MODE);
+	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "%", RIGHT_MODE);
+
+	if(battery_old != battery)
+	{
+		UTIL_LCD_SetFont(&Font48);
+		snprintf(buffer, sizeof(buffer), "%d", battery);
+		UTIL_LCD_FillRect(0, 140, 240, 50, UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
+		battery_old = battery;
+	}
+
+	return 0;
+}
+
+static bool display_settings(bool editing)
+{
+	// If more than 10 settings, just print 10
+	int num_printed = (SETTINGS_LENGTH > 10) ? 10 : SETTINGS_LENGTH;
+	if(!editing)
+		UTIL_LCD_FillRect(5, 56 + (setting_selected * 20), 4, 4, UTIL_LCD_COLOR_WHITE);
+	else
+		UTIL_LCD_FillRect(235, 56 + (setting_selected * 20), 4, 4, UTIL_LCD_COLOR_WHITE);
+
+	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+	for(int i = 0; i < num_printed; i++)
+	{
+		UTIL_LCD_SetFont(&Font16);
+		UTIL_LCD_DisplayStringAt(20, 50 + i * 20, (uint8_t*)get_label((Settings)i), LEFT_MODE);
+		uint8_t setting_value[5];
+		snprintf((char*)setting_value, sizeof(setting_value), "%d", get_setting((Settings)i));
+		UTIL_LCD_DisplayStringAt(10, 50 + i * 20, setting_value, RIGHT_MODE);
+	}
+
+	return 0;
+}
 /* USER CODE END 1 */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

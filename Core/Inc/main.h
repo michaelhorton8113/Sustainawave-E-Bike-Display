@@ -34,12 +34,14 @@ extern "C" {
 #include "key_io.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "cmsis_os2.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern osSemaphoreId_t display_refreshHandle;
+extern osMutexId_t screen_updateHandle;
+extern osMutexId_t setting_updateHandle;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -95,6 +97,12 @@ void Error_Handler(void);
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
+#define BUTTON_RIGHT_Pin GPIO_PIN_10
+#define BUTTON_RIGHT_GPIO_Port GPIOC
+#define BUTTON_LEFT_Pin GPIO_PIN_11
+#define BUTTON_LEFT_GPIO_Port GPIOC
+#define BUTTON_MIDDLE_Pin GPIO_PIN_12
+#define BUTTON_MIDDLE_GPIO_Port GPIOC
 #define JOY_DOWN_Pin GPIO_PIN_4
 #define JOY_DOWN_GPIO_Port GPIOB
 #define JOY_LEFT_Pin GPIO_PIN_6

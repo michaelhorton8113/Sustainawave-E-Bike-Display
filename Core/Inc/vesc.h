@@ -26,8 +26,11 @@ typedef struct VESC_Status {
 	uint32_t v_in;			// 2b v_in * 10
 }VESC_Status;
 
+extern volatile VESC_Status vesc_status;
+
 void sendVESCMessage(uint8_t TA);
 void vesc_init(CAN_HandleTypeDef *can_handle);
+void vesc_transmit(uint8_t command, uint8_t *data);
 void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan);
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
 int get_vesc_data(uint32_t *result, int num);

@@ -26,6 +26,16 @@
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+#include <stdbool.h>
+
+typedef enum {
+    ScreenSpeed,
+    ScreenAssist,
+    ScreenBattery,
+    ScreenPower,
+	ScreenSettings,
+	ScreenSettingsEditing,
+} ScreenType;
 
 /* USER CODE END ET */
 
@@ -45,6 +55,8 @@ void MX_DISPLAY_Init(void);
 void DISPLAY_Task(void *argument);
 
 /* USER CODE BEGIN EFP */
+ScreenType get_screen(void);
+bool update_screen(ScreenType screen);
 
 /* USER CODE END EFP */
 
