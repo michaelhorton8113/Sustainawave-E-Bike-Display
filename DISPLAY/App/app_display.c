@@ -23,16 +23,17 @@
 #include "mem_io.h"
 #include "lcd_io.h"
 /* USER CODE BEGIN Includes */
+#include <string.h>
+#include <stdbool.h>
 #include <math.h>
+
+#include "stm32_lcd.h"
 #include "cmsis_os.h"
 
-#include "string.h"
-#include "stdbool.h"
-#include "stm32_lcd.h"
+#include "settings.h"
+#include "buttons.h"
 #include "vesc.h"
 #include "bike.h"
-#include "buttons.h"
-#include "settings.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,38 +95,26 @@ typedef struct block_s {
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-uint8_t __IO TransferAllowed = 0;
 static uint8_t CacheBuffer[BUFFER_CACHE_COUNT][(320 * 2 * BUFFER_CACHE_LINES)];
-//static uint16_t posy0 = 0;
 static uint16_t posx = 0;
 static uint16_t posy = 0;
-//static uint8_t image_id = 0;
 static uint32_t LCD_Width = 0;
 static uint32_t LCD_Height = 0;
 static uint32_t LCD_Orientation = 0;
-//static uint8_t orientation_id = 0;
-//static uint32_t speed_hundreds = 10;
-//static uint32_t speed_tens = 10;
-//static uint32_t speed_ones = 10;
 static uint8_t assist_level = 3;
 
 static uint8_t company_name[13] = "SUSTAINAWAVE";
-//static uint8_t battery_level = 0;
-static uint8_t available_power = 0;
 static uint32_t setting_selected = 0;
 
 static char buffer[16];
 
 static __IO uint16_t tearing_effect_counter = 0;
 
-//static const orientation_t orientations[] = { { LCD_ORIENTATION_PORTRAIT,
-	//	KEY_ORIENTATION_PORTRAIT }, { LCD_ORIENTATION_LANDSCAPE,
-		//KEY_ORIENTATION_LANDSCAPE }, { LCD_ORIENTATION_PORTRAIT_ROT180,
-		//KEY_ORIENTATION_PORTRAIT_ROT180 }, { LCD_ORIENTATION_LANDSCAPE_ROT180,
-		//KEY_ORIENTATION_LANDSCAPE_ROT180 } };
-
+// Screen to be displayed; protected by mutex
 ScreenType current_screen = ScreenSpeed;
+
 ScreenType old_screen = ScreenSpeed;
+static int battery_old = -1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -407,38 +396,13 @@ static bool setup_display(ScreenType screen)
 		UTIL_LCD_DisplayStringAt(155, 144, (uint8_t*) "KM/", LEFT_MODE);
 		UTIL_LCD_DisplayStringAt(155, 168, (uint8_t*) "H", LEFT_MODE);
 
-		/* Battery */
-		/*
-		int battery = 0;
-		if(vesc_status.v_in >= 360 && vesc_status.v_in <= 420)
-			battery = discharge_curve[vesc_status.v_in - 360];
-		else
-			battery = 0;
-
-		UTIL_LCD_FillRect(BATTERY_X, BATTERY_Y, 52, 22, UTIL_LCD_COLOR_WHITE);
-		UTIL_LCD_FillRect(BATTERY_X-2, BATTERY_Y+6, 2, 10, UTIL_LCD_COLOR_WHITE);
-		UTIL_LCD_FillRect(161, 41, battery/2, 20, UTIL_LCD_COLOR_GREEN);
-		char battery_str[5];
-		snprintf(battery_str, sizeof(battery_str), "%d%%", battery);
-		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-		UTIL_LCD_SetFont(&Font16);
-		UTIL_LCD_DisplayStringAt((240 - BATTERY_X + 5), BATTERY_Y + 5, (uint8_t*)battery_str, RIGHT_MODE);
-		UTIL_LCD_DisplayStringAt(10, BATTERY_Y + 5, (uint8_t*) "4:38pm", LEFT_MODE);
-		*/
+		// Force battery to be updated
+		battery_old = -1;
 
 		/* Assist */
-		char assist[7] = "ASSIST";
 		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
 		UTIL_LCD_SetFont(&Font20);
-		UTIL_LCD_DisplayStringAt(10, 260, (uint8_t*)assist, LEFT_MODE);
-		for(int i = 4; i >= assist_level; i--)
-		{
-			UTIL_LCD_FillRect(10 + (i * 44), 290, 40, 20, UTIL_LCD_COLOR_TRANSPARENT);
-		}
-		for(int i = 0; i < assist_level; i++)
-		{
-			UTIL_LCD_FillRect(10 + (i * 44), 290, 40, 20, UTIL_LCD_COLOR_WHITE);
-		}
+		UTIL_LCD_DisplayStringAt(10, 260, (uint8_t*)"ASSIST", LEFT_MODE);
 
 		break;
 	case ScreenAssist:
@@ -479,8 +443,6 @@ static bool setup_display(ScreenType screen)
 	return 0;
 }
 
-static int battery_old = 101;
-uint32_t refresh_count = 0;
 static bool display_speed(void)
 {
 	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
@@ -490,9 +452,6 @@ static bool display_speed(void)
 	char buffer[16];
 	snprintf(buffer, 16, "%lu", speed_updated);
 	UTIL_LCD_DisplayStringAt(100, 140, (uint8_t*)buffer, RIGHT_MODE);
-
-	snprintf(buffer, 16, "%lu", refresh_count++);
-	UTIL_LCD_DisplayStringAt(0, 190, (uint8_t*)buffer, RIGHT_MODE);
 
 	/* Battery */
 	int battery = 0;
@@ -533,26 +492,20 @@ static bool display_speed(void)
 }
 static bool display_assist(void)
 {
-	snprintf(buffer, sizeof(buffer), "%d", assist_level);
 	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
 	UTIL_LCD_SetFont(&Font20);
 	UTIL_LCD_DisplayStringAt(0, 80, (uint8_t*) "ASSIST LEVEL", CENTER_MODE);
 	UTIL_LCD_SetFont(&Font48);
-	UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
-	memset(buffer, 0, sizeof(buffer));
 
 	return 0;
 }
 static bool display_power(void)
 {
-	snprintf(buffer, sizeof(buffer), "%d", available_power);
 	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
 	UTIL_LCD_SetFont(&Font20);
 	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "AVAILABLE POWER", LEFT_MODE);
 	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "W", RIGHT_MODE);
 	UTIL_LCD_SetFont(&Font48);
-	UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
-	memset(buffer, 0, sizeof(buffer));
 
 	return 0;
 }
