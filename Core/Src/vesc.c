@@ -5,6 +5,9 @@
  *      Author: david
  */
 
+#include <stdio.h>
+#include <string.h>
+
 #include "FreeRTOS.h"
 #include "cmsis_os.h"
 
@@ -12,6 +15,7 @@
 #include "vesc.h"
 
 #include "settings.h"
+#include "buttons.h"
 
 uint8_t RxData[8];
 
@@ -22,30 +26,33 @@ static volatile uint32_t conv_value = 0;
 
 static CAN_HandleTypeDef *vesc_can;
 
+static void buffer_append_int32(uint8_t* buffer, int32_t number, int32_t *index);
+
 void can_task(void* argumnet)
 {
 	for(;;)
 	{
 		TickType_t start_time = xTaskGetTickCount();
 
-		HAL_ADC_Start_IT(&hadc1);
+		// Get duty cycle according to buttons
+		osSemaphoreAcquire(duty_cycleHandle, portMAX_DELAY);
+		uint32_t num = duty_sent;
+		osSemaphoreRelease(duty_cycleHandle);
 
-		osSemaphoreAcquire(adc_doneHandle, portMAX_DELAY);
+		// Convert to duty cycle that will be accepted by VESC
+		num *= 1000;
 
-		uint8_t data = (conv_value * 100) / 4095;
-		vesc_transmit(0, &data);
+		// Put number in buffer
+		uint8_t data[4];
+		int32_t index = 0;
+		buffer_append_int32(data, num, &index);
 
+		// Transmit duty cycle
+		vesc_transmit(0, data);
+
+		// Trigger again every 1/10 of a second
 		vTaskDelayUntil(&start_time, 100);
 	}
-}
-
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-{
-	conv_value = HAL_ADC_GetValue(hadc);
-
-	HAL_ADC_Stop_IT(&hadc1);
-
-	osSemaphoreRelease(adc_doneHandle);
 }
 
 void vesc_init(CAN_HandleTypeDef *can_handle)
@@ -69,26 +76,6 @@ void vesc_init(CAN_HandleTypeDef *can_handle)
   HAL_CAN_ActivateNotification(vesc_can, CAN_IT_RX_FIFO0_MSG_PENDING);
 }
 
-void sendVESCMessage(uint8_t TA)
-{
-  CAN_TxHeaderTypeDef txHeader;
-  uint8_t txData[8] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08} ;
-  uint32_t txMailbox;
-
-  //txData[2] = TA;
-
-  txHeader.StdId = 38; // Replace with the actual CAN ID of the VESC
-  txHeader.ExtId = 0x01;
-  txHeader.RTR = CAN_RTR_DATA;
-  txHeader.IDE = CAN_ID_STD;
-  txHeader.DLC = 2;
-  //txHeader.TransmitGlobalTime = DISABLE;
-
-  if (HAL_CAN_AddTxMessage(vesc_can, &txHeader, txData, &txMailbox) != HAL_OK)
-  {
-  }
-}
-
 void vesc_transmit(uint8_t command, uint8_t * data)
 {
   CAN_TxHeaderTypeDef header;
@@ -106,6 +93,13 @@ void vesc_transmit(uint8_t command, uint8_t * data)
   if(HAL_CAN_AddTxMessage(vesc_can, &header, data, &mailbox) != HAL_OK) {
 	  __asm__("nop");
   }
+}
+
+static void buffer_append_int32(uint8_t* buffer, int32_t number, int32_t *index) {
+	buffer[(*index)++] = number >> 24;
+	buffer[(*index)++] = number >> 16;
+	buffer[(*index)++] = number >> 8;
+	buffer[(*index)++] = number;
 }
 
 void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan)

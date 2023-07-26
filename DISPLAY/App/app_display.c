@@ -100,7 +100,6 @@ static uint16_t posy = 0;
 static uint32_t LCD_Width = 0;
 static uint32_t LCD_Height = 0;
 static uint32_t LCD_Orientation = 0;
-static uint8_t assist_level = 3;
 
 static uint8_t company_name[13] = "SUSTAINAWAVE";
 
@@ -111,7 +110,7 @@ ScreenType current_screen = ScreenSpeed;
 
 ScreenType screen_old = ScreenSpeed;
 static int battery_old = -1;
-static int settings_old = -1;
+static int speed_old = -1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -332,6 +331,7 @@ void DISPLAY_Task(void *argument)
 			break;
 		}
 
+		vTaskDelay(250);
 	}
   /* USER CODE END DISPLAY_Task */
 }
@@ -361,17 +361,17 @@ void BSP_LCD_SignalTearingEffectEvent(uint32_t Instance, uint8_t state, uint16_t
 
 ScreenType get_screen(void)
 {
-//	osMutexAcquire(&screen_updateHandle, portMAX_DELAY);
+	osSemaphoreAcquire(screen_updateHandle, portMAX_DELAY);
 	ScreenType screen = current_screen;
-//	osMutexRelease(&screen_updateHandle);
+	osSemaphoreRelease(screen_updateHandle);
 
 	return screen;
 }
 bool update_screen(ScreenType screen)
 {
-//	osMutexAcquire(&screen_updateHandle, portMAX_DELAY);
+	osSemaphoreAcquire(screen_updateHandle, portMAX_DELAY);
 	current_screen = screen;
-//	osMutexRelease(&screen_updateHandle);
+	osSemaphoreRelease(screen_updateHandle);
 
 	return 0;
 }
@@ -397,6 +397,8 @@ static bool setup_display(ScreenType screen)
 
 		// Force battery to be updated
 		battery_old = -1;
+		// Force speed to be updated
+		speed_old = -1;
 		show_battery(BATTERY_X, BATTERY_Y);
 
 		/* Assist */
@@ -447,25 +449,29 @@ static bool display_speed(void)
 {
 	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
 	UTIL_LCD_SetFont(&Font48);
-	UTIL_LCD_FillRect(80, 140, 75, 50, UTIL_LCD_COLOR_TRANSPARENT);
 	uint32_t speed_updated = (vesc_status.rpm * 60 * (get_setting(WheelSize) * M_PI)) / 100000;
-	char buffer[16];
-	snprintf(buffer, 16, "%lu", speed_updated);
-	UTIL_LCD_DisplayStringAt(100, 140, (uint8_t*)buffer, RIGHT_MODE);
+
+	if(speed_updated != speed_old && speed_updated < 100)
+	{
+		UTIL_LCD_FillRect(80, 140, 75, 50, UTIL_LCD_COLOR_TRANSPARENT);
+		speed_old = speed_updated;
+		char buffer[16];
+		snprintf(buffer, 16, "%lu", speed_updated);
+		UTIL_LCD_DisplayStringAt(100, 140, (uint8_t*)buffer, RIGHT_MODE);
+	}
 
 	/* Battery */
 	show_battery(BATTERY_X, BATTERY_Y);
 	/* Assist */
-	for(int i = 4; i >= assist_level; i--)
+	int assist = get_assist();
+	for(int i = 4; i >= assist; i--)
 	{
 		UTIL_LCD_FillRect(10 + (i * 44), 290, 40, 20, UTIL_LCD_COLOR_TRANSPARENT);
 	}
-	for(int i = 0; i < assist_level; i++)
+	for(int i = 0; i < assist; i++)
 	{
 		UTIL_LCD_FillRect(10 + (i * 44), 290, 40, 20, UTIL_LCD_COLOR_WHITE);
 	}
-
-	vesc_status.rpm++;
 
 	return 0;
 }
@@ -521,18 +527,20 @@ static bool display_settings(bool editing)
 static bool show_battery(int xpos, int ypos)
 {
 	int battery = 0;
+	int ret = 0;
 	if(vesc_status.v_in >= 360 && vesc_status.v_in <= 420)
 		battery = discharge_curve[vesc_status.v_in - 360];
 	else
 	{
 		battery = 0;
-		return 1;
+		ret = 1;
 	}
 	if(battery_old != battery)
 	{
 		// Display battery icon
+		UTIL_LCD_FillRect(xpos-2, ypos+6, 2, 10, UTIL_LCD_COLOR_WHITE);
 		UTIL_LCD_FillRect(xpos, ypos, 52, 22, UTIL_LCD_COLOR_WHITE);
-		UTIL_LCD_FillRect(xpos+1 + (50 - (battery/2)), ypos+1, battery/2, 20, UTIL_LCD_COLOR_GREEN);
+		UTIL_LCD_FillRect(xpos+1 + (50 - (battery/2)), ypos+1, battery/2, 20, UTIL_LCD_COLOR_BLACK);
 
 		// Display percentage
 		char battery_str[5];
@@ -540,12 +548,12 @@ static bool show_battery(int xpos, int ypos)
 		UTIL_LCD_FillRect(xpos - 70, ypos, 60, 20, UTIL_LCD_COLOR_TRANSPARENT);
 		UTIL_LCD_SetFont(&Font16);
 		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-		UTIL_LCD_DisplayStringAt((240 - xpos + 5), xpos + 5, (uint8_t*)battery_str, RIGHT_MODE);
+		UTIL_LCD_DisplayStringAt((240 - xpos + 5), ypos + 5, (uint8_t*)battery_str, RIGHT_MODE);
 		// Update old battery level
 		battery_old = battery;
 	}
 
-	return 0;
+	return ret;
 }
 /* USER CODE END 1 */
 

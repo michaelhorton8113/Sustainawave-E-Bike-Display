@@ -39,10 +39,10 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-extern osSemaphoreId_t display_refreshHandle;
-extern osSemaphoreId_t adc_doneHandle;
+extern osSemaphoreId_t assist_levelHandle;
+extern osSemaphoreId_t duty_cycleHandle;
+extern osSemaphoreId_t settings_updateHandle;
 extern osMutexId_t screen_updateHandle;
-extern osMutexId_t setting_updateHandle;
 extern ADC_HandleTypeDef hadc1;
 /* USER CODE END ET */
 

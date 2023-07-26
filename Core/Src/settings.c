@@ -8,6 +8,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "FreeRTOS.h"
+#include "cmsis_os.h"
+
+#include "main.h"
+
 #include "settings.h"
 
 // Min, max, increment and default values
@@ -41,47 +46,63 @@ const int discharge_curve[61] =
 };
 void init_settings(void)
 {
+	osSemaphoreAcquire(settings_updateHandle, portMAX_DELAY);
 	for(int i = 0; i < SETTINGS_LENGTH; i++)
 	{
 		settings[i] = settings_constants[i].defaultValue;
 	}
+	osSemaphoreRelease(settings_updateHandle);
 }
 
 bool set_setting(Settings setting, uint16_t new_value)
 {
+	// Get lock on settings
+	osSemaphoreAcquire(settings_updateHandle, portMAX_DELAY);
 	// If new settings was within the range
+	bool ret = 0;
 	if(new_value <= settings_constants[(int)setting].max
 			&& new_value >= settings_constants[(int)setting].min)
 	{
 		// Update to the new value
 		settings[(int)setting] = new_value;
-
-		return 0;
 	}
-	else return 1;
+	else
+		ret =  1;
+
+	// Release lock
+	osSemaphoreRelease(settings_updateHandle);
+	return ret;
 }
 
 uint16_t get_setting(Settings setting)
 {
-	return settings[(int)setting];
+	osSemaphoreAcquire(settings_updateHandle, portMAX_DELAY);
+	uint16_t val = settings[(int)setting];
+	osSemaphoreRelease(settings_updateHandle);
+
+	return val;
 }
 
 bool inc_setting(Settings setting)
 {
+	osSemaphoreAcquire(settings_updateHandle, portMAX_DELAY);
 	if(settings[(int)setting] + settings_constants[(int)setting].increment <= settings_constants[(int)setting].max)
 	{
 		settings[(int)setting] += settings_constants[(int)setting].increment;
 	}
+	osSemaphoreRelease(settings_updateHandle);
 
 	return 1;
 }
 
 bool dec_setting(Settings setting)
 {
+	osSemaphoreAcquire(settings_updateHandle, portMAX_DELAY);
 	if(settings[(int)setting] - settings_constants[(int)setting].increment >= settings_constants[(int)setting].min)
 	{
 		settings[(int)setting] -= settings_constants[(int)setting].increment;
 	}
+	osSemaphoreRelease(settings_updateHandle);
 
 	return 1;
 }

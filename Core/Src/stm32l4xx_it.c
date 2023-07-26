@@ -358,7 +358,17 @@ volatile uint32_t psr;/* Program status register. */
     pc = pulFaultStackAddress[ 6 ];
     psr = pulFaultStackAddress[ 7 ];
 
+    UNUSED(r0);
+    UNUSED(r1);
+    UNUSED(r2);
+    UNUSED(r3);
+    UNUSED(r12);
+    UNUSED(lr);
+    UNUSED(pc);
+    UNUSED(psr);
+
     /* When the following line is hit, the variables contain the register values. */
     for( ;; );
 }
+
 /* USER CODE END 1 */

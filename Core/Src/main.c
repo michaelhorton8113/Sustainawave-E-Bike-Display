@@ -79,25 +79,25 @@ const osThreadAttr_t canTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
+/* Definitions for duty_cycle */
+osSemaphoreId_t duty_cycleHandle;
+const osSemaphoreAttr_t duty_cycle_attributes = {
+  .name = "duty_cycle"
+};
 /* Definitions for screen_update */
-osMutexId_t screen_updateHandle;
-const osMutexAttr_t screen_update_attributes = {
+osSemaphoreId_t screen_updateHandle;
+const osSemaphoreAttr_t screen_update_attributes = {
   .name = "screen_update"
 };
-/* Definitions for setting_update */
-osMutexId_t setting_updateHandle;
-const osMutexAttr_t setting_update_attributes = {
-  .name = "setting_update"
+/* Definitions for assist_level */
+osSemaphoreId_t assist_levelHandle;
+const osSemaphoreAttr_t assist_level_attributes = {
+  .name = "assist_level"
 };
-/* Definitions for display_refresh */
-osSemaphoreId_t display_refreshHandle;
-const osSemaphoreAttr_t display_refresh_attributes = {
-  .name = "display_refresh"
-};
-/* Definitions for adc_done */
-osSemaphoreId_t adc_doneHandle;
-const osSemaphoreAttr_t adc_done_attributes = {
-  .name = "adc_done"
+/* Definitions for settings_update */
+osSemaphoreId_t settings_updateHandle;
+const osSemaphoreAttr_t settings_update_attributes = {
+  .name = "settings_update"
 };
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
@@ -169,23 +169,23 @@ int main(void)
 
   /* Init scheduler */
   osKernelInitialize();
-  /* Create the mutex(es) */
-  /* creation of screen_update */
-  screen_updateHandle = osMutexNew(&screen_update_attributes);
-
-  /* creation of setting_update */
-  setting_updateHandle = osMutexNew(&setting_update_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
-  /* creation of display_refresh */
-  display_refreshHandle = osSemaphoreNew(1, 1, &display_refresh_attributes);
+  /* creation of duty_cycle */
+  duty_cycleHandle = osSemaphoreNew(1, 1, &duty_cycle_attributes);
 
-  /* creation of adc_done */
-  adc_doneHandle = osSemaphoreNew(1, 1, &adc_done_attributes);
+  /* creation of screen_update */
+  screen_updateHandle = osSemaphoreNew(1, 1, &screen_update_attributes);
+
+  /* creation of assist_level */
+  assist_levelHandle = osSemaphoreNew(1, 1, &assist_level_attributes);
+
+  /* creation of settings_update */
+  settings_updateHandle = osSemaphoreNew(1, 1, &settings_update_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */

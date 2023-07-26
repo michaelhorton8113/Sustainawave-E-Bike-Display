@@ -16,13 +16,18 @@
 #include "key_io.h"
 #include "app_display.h"
 #include "settings.h"
+#include "main.h"
+#include "vesc.h"
 
 uint32_t setting_selected = 0;
+int32_t duty_sent = 0;
 
 static TickType_t last_button_time = 0;
 static TickType_t last_state_change = 0;
 static uint8_t last_state = 0;		// Last state initialized as no button pushed
 static bool long_press = 0;
+
+static int assist_level = 3;
 
 
 static void handleButtonClick(ButtonState button);
@@ -77,28 +82,52 @@ void handleButtonClick(ButtonState button) {
 			screen = ScreenSettings;
 			setting_selected = 0;
 
-//			setup_display(screen);
-//			display_settings();
-//			while(get_button_state() == ButtonMiddleLong) vTaskDelay(10);
+			update_screen(screen);
 		}
 		else
 		{
 			screen = ScreenSpeed;
 			update_screen(screen);
-//			setup_display(screen);
-			while(get_button_state() == ButtonMiddleLong)
-			{
-				vTaskDelay(10);
-//				display_speed();
-			}
 		}
+
+		while(get_button_state() == ButtonMiddleLong) vTaskDelay(16);
+		break;
+	case ButtonRightLong:
+		while(get_button_state() == ButtonRightLong)
+		{
+			// Increase duty cycle by 1%
+			osSemaphoreAcquire(duty_cycleHandle, portMAX_DELAY);
+			duty_sent ++;
+			osSemaphoreRelease(duty_cycleHandle);
+
+			vTaskDelay(100);
+		}
+
+		osSemaphoreAcquire(duty_cycleHandle, portMAX_DELAY);
+		duty_sent = 0;
+		osSemaphoreRelease(duty_cycleHandle);
+
+		break;
+	case ButtonLeftLong:
+		while(get_button_state() == ButtonLeftLong)
+		{
+			// Increase duty cycle by 1%
+			osSemaphoreAcquire(duty_cycleHandle, portMAX_DELAY);
+			duty_sent --;
+			osSemaphoreRelease(duty_cycleHandle);
+
+			vTaskDelay(100);
+		}
+
+		osSemaphoreAcquire(duty_cycleHandle, portMAX_DELAY);
+		duty_sent = 0;
+		osSemaphoreRelease(duty_cycleHandle);
+
 		break;
 	case ButtonLeft:
 		if(screen == ScreenSettingsEditing)
 		{
 			dec_setting((Settings)setting_selected);
-			// Leave the last 10 untouched so the incicator can stay
-			UTIL_LCD_FillRect(170, 50 + (setting_selected * 20), 60, 16, UTIL_LCD_COLOR_TRANSPARENT);
 		}
 		else if(screen == ScreenSettings)
 		{
@@ -106,29 +135,21 @@ void handleButtonClick(ButtonState button) {
 		}
 		else
 		{
-//			assist_level -= (uint8_t) assist_level > 0;
-//			uint8_t data = assist_level * 5;
-//			vesc_transmit(0, &data);
-			UTIL_LCD_FillRect(110, 140, 50, 50, UTIL_LCD_COLOR_TRANSPARENT);
+			inc_assist(-1);
 		}
 		break;
 	case ButtonRight:
 		if(screen == ScreenSettingsEditing)
 		{
 			inc_setting((Settings)setting_selected);
-			// Leave the last 10 untouched so the incicator can stay
-			UTIL_LCD_FillRect(170, 50 + (setting_selected * 20), 60, 16, UTIL_LCD_COLOR_TRANSPARENT);
 		}
 		else if(screen == ScreenSettings)
 		{
 			setting_selected += (int)(setting_selected < SETTINGS_LENGTH);
-			UTIL_LCD_FillRect(5, 50, 4, 200, UTIL_LCD_COLOR_TRANSPARENT);
 		}
 		else
 		{
-//			assist_level += (uint8_t) assist_level < 5;
-//			uint8_t data = assist_level * 5;
-//			vesc_transmit(0, &data);
+			inc_assist(1);
 		}
 		break;
 	default:
@@ -216,6 +237,29 @@ ButtonState get_button_state(void)
 
 	// No buttons pushed
 	return ButtonNone;
+}
+
+bool inc_assist(int inc_amount)
+{
+	osSemaphoreAcquire(assist_levelHandle, portMAX_DELAY);
+
+	assist_level += inc_amount;
+
+	if(assist_level > 5) assist_level = 5;
+	if(assist_level < 0) assist_level = 0;
+
+	osSemaphoreRelease(assist_levelHandle);
+
+	return 0;
+}
+
+int get_assist(void)
+{
+	osSemaphoreAcquire(assist_levelHandle, portMAX_DELAY);
+	int assist = assist_level;
+	osSemaphoreRelease(assist_levelHandle);
+
+	return assist;
 }
 
 uint8_t get_button_left(void)
