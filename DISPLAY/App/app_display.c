@@ -110,6 +110,8 @@ ScreenType current_screen = ScreenSpeed;
 
 ScreenType screen_old = ScreenSpeed;
 static int battery_old = -1;
+static uint32_t v_in_old = -1;
+static int assist_old = -1;
 static int speed_old = -1;
 static int setting_old = -1;
 static int setting_selected_old = -1;
@@ -131,7 +133,6 @@ static int32_t BSP_LCD_GetPixelFormat(uint32_t Instance, uint32_t *PixelFormat);
 static bool setup_display(ScreenType screen);
 static bool display_speed(void);
 static bool display_assist(void);
-static bool display_power(void);
 static bool display_battery(void);
 static bool display_settings(bool editing);
 
@@ -333,9 +334,6 @@ void DISPLAY_Task(void *argument)
 		case ScreenBattery:
 			display_battery();
 			break;
-		case ScreenPower:
-			display_power();
-			break;
 		case ScreenSettings:
 			display_settings(0);
 			break;
@@ -440,17 +438,17 @@ static bool setup_display(ScreenType screen)
 		UTIL_LCD_SetFont(&Font20);
 		UTIL_LCD_DisplayStringAt(10, 260, (uint8_t*)"ASSIST", LEFT_MODE);
 
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_SetFont(&Font16);
+		UTIL_LCD_DisplayStringAt(5, 45, (uint8_t*) "5:38 PM", LEFT_MODE);
+
 		break;
 	case ScreenAssist:
 		UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
 		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
 
-		UTIL_LCD_SetFont(&Font24);
-		UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
-		break;
-	case ScreenPower:
-		UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
-		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
+		// Force assist to update
+		assist_old = -1;
 
 		UTIL_LCD_SetFont(&Font24);
 		UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
@@ -458,9 +456,15 @@ static bool setup_display(ScreenType screen)
 	case ScreenBattery:
 		UTIL_LCD_SetBackColor(UTIL_LCD_COLOR_TRANSPARENT);
 		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
-
 		UTIL_LCD_SetFont(&Font24);
 		UTIL_LCD_DisplayStringAt(posx, posy, COMPANY_NAME, CENTER_MODE);
+
+		// Force battery to be updated
+		battery_old = -1;
+		v_in_old = -1;
+
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_DisplayStringAt(0, 80, (uint8_t*)"BATTERY", CENTER_MODE);
 		break;
 	case ScreenSettings:
 		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
@@ -515,23 +519,35 @@ static bool display_assist(void)
 	UTIL_LCD_SetFont(&Font20);
 	UTIL_LCD_DisplayStringAt(0, 80, (uint8_t*) "ASSIST LEVEL", CENTER_MODE);
 	UTIL_LCD_SetFont(&Font48);
+	int assist = get_assist();
+	if(assist != assist_old)
+	{
+		UTIL_LCD_FillRect(0, 140, 240, 48, UTIL_LCD_COLOR_TRANSPARENT);
+		assist_old = assist;
+	}
 
-	return 0;
-}
-static bool display_power(void)
-{
-	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-	UTIL_LCD_SetFont(&Font20);
-	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "AVAILABLE POWER", LEFT_MODE);
-	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "W", RIGHT_MODE);
-	UTIL_LCD_SetFont(&Font48);
+	char buffer[2];
+	snprintf(buffer, sizeof(buffer), "%d", assist);
+	UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*)buffer, CENTER_MODE);
 
 	return 0;
 }
 
 static bool display_battery(void)
 {
-	show_battery(BATTERY_X, BATTERY_Y);
+	show_battery(120, 140);
+	char buffer[16];
+
+	if(vesc_status.v_in != v_in_old)
+	{
+		UTIL_LCD_FillRect(5, 180, 200, 20, UTIL_LCD_COLOR_TRANSPARENT);
+		v_in_old = vesc_status.v_in;
+		snprintf(buffer, sizeof(buffer), "Vin: %lu.%luV", vesc_status.v_in / 10, vesc_status.v_in % 10);
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_SetFont(&Font20);
+		UTIL_LCD_DisplayStringAt(5, 180, (uint8_t*) buffer, CENTER_MODE);
+	}
+
 
 	return 0;
 }

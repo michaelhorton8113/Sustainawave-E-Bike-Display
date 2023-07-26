@@ -32,7 +32,6 @@ typedef enum {
     ScreenSpeed,
     ScreenAssist,
     ScreenBattery,
-    ScreenPower,
 	ScreenSettings,
 	ScreenSettingsEditing,
 } ScreenType;
