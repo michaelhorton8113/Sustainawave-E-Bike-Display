@@ -93,15 +93,12 @@ void handleButtonClick(ButtonState button) {
 		while(get_button_state() == ButtonMiddleLong) vTaskDelay(16);
 		break;
 	case ButtonRightLong:
-		vesc_status.v_in = 360;
 		while(get_button_state() == ButtonRightLong)
 		{
 			// Increase duty cycle by 1%
 			osSemaphoreAcquire(duty_cycleHandle, portMAX_DELAY);
 			duty_sent ++;
 			osSemaphoreRelease(duty_cycleHandle);
-
-			vesc_status.v_in ++;
 
 			vTaskDelay(100);
 		}
