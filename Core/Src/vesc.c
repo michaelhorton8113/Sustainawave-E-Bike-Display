@@ -5,6 +5,10 @@
  *      Author: david
  */
 
+#include "FreeRTOS.h"
+#include "cmsis_os.h"
+
+#include "main.h"
 #include "vesc.h"
 
 #include "settings.h"
@@ -14,8 +18,35 @@ uint8_t RxData[8];
 // Globally visible status
 // TODO Should probably deal with this better
 volatile VESC_Status vesc_status;
+static volatile uint32_t conv_value = 0;
 
 static CAN_HandleTypeDef *vesc_can;
+
+void can_task(void* argumnet)
+{
+	for(;;)
+	{
+		TickType_t start_time = xTaskGetTickCount();
+
+		HAL_ADC_Start_IT(&hadc1);
+
+		osSemaphoreAcquire(adc_doneHandle, portMAX_DELAY);
+
+		uint8_t data = (conv_value * 100) / 4095;
+		vesc_transmit(0, &data);
+
+		vTaskDelayUntil(&start_time, 100);
+	}
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+{
+	conv_value = HAL_ADC_GetValue(hadc);
+
+	HAL_ADC_Stop_IT(&hadc1);
+
+	osSemaphoreRelease(adc_doneHandle);
+}
 
 void vesc_init(CAN_HandleTypeDef *can_handle)
 {

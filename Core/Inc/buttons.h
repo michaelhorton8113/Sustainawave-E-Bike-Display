@@ -20,6 +20,10 @@ typedef enum ButtonState {
 
 #define LONG_PRESS (400)
 
+extern uint32_t setting_selected;
+
+void button_task(void *argument);
+
 ButtonState get_button_state(void);
 
 uint8_t get_button_right(void);

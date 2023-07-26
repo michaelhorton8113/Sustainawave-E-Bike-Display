@@ -33,7 +33,6 @@
 #include "settings.h"
 #include "buttons.h"
 #include "vesc.h"
-#include "bike.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -104,17 +103,15 @@ static uint32_t LCD_Orientation = 0;
 static uint8_t assist_level = 3;
 
 static uint8_t company_name[13] = "SUSTAINAWAVE";
-static uint32_t setting_selected = 0;
-
-static char buffer[16];
 
 static __IO uint16_t tearing_effect_counter = 0;
 
 // Screen to be displayed; protected by mutex
 ScreenType current_screen = ScreenSpeed;
 
-ScreenType old_screen = ScreenSpeed;
+ScreenType screen_old = ScreenSpeed;
 static int battery_old = -1;
+static int settings_old = -1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,6 +133,8 @@ static bool display_assist(void);
 static bool display_power(void);
 static bool display_battery(void);
 static bool display_settings(bool editing);
+
+static bool show_battery(int xpos, int ypos);
 
 static const LCD_UTILS_Drv_t LCD_Driver = {
 NULL, /* DrawBitmap   */
@@ -287,7 +286,7 @@ void MX_DISPLAY_Init(void)
 
 	UTIL_LCD_SetFuncDriver(&LCD_Driver);
 
-	setup_display(get_screen());
+	setup_display(ScreenSpeed);
   /* USER CODE END MX_DISPLAY_Init 1 */
 }
 
@@ -300,10 +299,10 @@ void DISPLAY_Task(void *argument)
 	for(;;)
 	{
 		ScreenType screen = get_screen();
-		if(screen != old_screen)
+		if(screen != screen_old)
 		{
 			// Update current display
-			old_screen = screen;
+			screen_old = screen;
 			// Setup new display
 			setup_display(screen);
 		}
@@ -333,7 +332,6 @@ void DISPLAY_Task(void *argument)
 			break;
 		}
 
-		osSemaphoreAcquire(&display_refreshHandle, 0);
 	}
   /* USER CODE END DISPLAY_Task */
 }
@@ -349,7 +347,6 @@ void BSP_LCD_SignalTearingEffectEvent(uint32_t Instance, uint8_t state, uint16_t
       if(Line == 0)
       {
         /* TE event is received : allow display refresh */
-    	  osSemaphoreRelease(&display_refreshHandle);
       }
     }
     else
@@ -360,23 +357,25 @@ void BSP_LCD_SignalTearingEffectEvent(uint32_t Instance, uint8_t state, uint16_t
   }
 }
 
-bool update_screen(ScreenType screen)
-{
-	osMutexAcquire(&screen_updateHandle, 0);
-	current_screen = screen;
-	osMutexRelease(&screen_updateHandle);
-	return 0;
-}
+/* USER CODE BEGIN 1 */
 
 ScreenType get_screen(void)
 {
-	osMutexAcquire(&screen_updateHandle, 0);
+//	osMutexAcquire(&screen_updateHandle, portMAX_DELAY);
 	ScreenType screen = current_screen;
-	osMutexRelease(&screen_updateHandle);
+//	osMutexRelease(&screen_updateHandle);
+
 	return screen;
 }
+bool update_screen(ScreenType screen)
+{
+//	osMutexAcquire(&screen_updateHandle, portMAX_DELAY);
+	current_screen = screen;
+//	osMutexRelease(&screen_updateHandle);
 
-/* USER CODE BEGIN 1 */
+	return 0;
+}
+
 static bool setup_display(ScreenType screen)
 {
 	// Clear screen so next data can be displayed
@@ -398,6 +397,7 @@ static bool setup_display(ScreenType screen)
 
 		// Force battery to be updated
 		battery_old = -1;
+		show_battery(BATTERY_X, BATTERY_Y);
 
 		/* Assist */
 		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_YELLOW);
@@ -454,28 +454,7 @@ static bool display_speed(void)
 	UTIL_LCD_DisplayStringAt(100, 140, (uint8_t*)buffer, RIGHT_MODE);
 
 	/* Battery */
-	int battery = 0;
-	if(vesc_status.v_in >= 360 && vesc_status.v_in <= 420)
-		battery = discharge_curve[vesc_status.v_in - 360];
-	else
-		battery = 0;
-	if(battery_old != battery)
-	{
-		// Display battery icon
-		UTIL_LCD_FillRect(BATTERY_X, BATTERY_Y, 52, 22, UTIL_LCD_COLOR_WHITE);
-		UTIL_LCD_FillRect(BATTERY_X+1 + (50 - (battery/2)), BATTERY_Y+1, battery/2, 20, UTIL_LCD_COLOR_GREEN);
-
-		// Display percentage
-		char battery_str[5];
-		snprintf(battery_str, sizeof(battery_str), "%d%%", battery);
-		UTIL_LCD_FillRect(BATTERY_X - 70, 40, 60, 20, UTIL_LCD_COLOR_TRANSPARENT);
-		UTIL_LCD_SetFont(&Font16);
-		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-		UTIL_LCD_DisplayStringAt((240 - BATTERY_X + 5), BATTERY_Y + 5, (uint8_t*)battery_str, RIGHT_MODE);
-		// Update old battery level
-		battery_old = battery;
-	}
-
+	show_battery(BATTERY_X, BATTERY_Y);
 	/* Assist */
 	for(int i = 4; i >= assist_level; i--)
 	{
@@ -512,25 +491,7 @@ static bool display_power(void)
 
 static bool display_battery(void)
 {
-	int battery = 0;
-	if(vesc_status.v_in >= 360 && vesc_status.v_in <= 420)
-		battery = discharge_curve[vesc_status.v_in - 360];
-	else
-		battery = 0;
-
-	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
-	UTIL_LCD_SetFont(&Font20);
-	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "BATTERY LEVEL", LEFT_MODE);
-	UTIL_LCD_DisplayStringAt(15, 80, (uint8_t*) "%", RIGHT_MODE);
-
-	if(battery_old != battery)
-	{
-		UTIL_LCD_SetFont(&Font48);
-		snprintf(buffer, sizeof(buffer), "%d", battery);
-		UTIL_LCD_FillRect(0, 140, 240, 50, UTIL_LCD_COLOR_TRANSPARENT);
-		UTIL_LCD_DisplayStringAt(0, 140, (uint8_t*) buffer, CENTER_MODE);
-		battery_old = battery;
-	}
+	show_battery(BATTERY_X, BATTERY_Y);
 
 	return 0;
 }
@@ -552,6 +513,36 @@ static bool display_settings(bool editing)
 		uint8_t setting_value[5];
 		snprintf((char*)setting_value, sizeof(setting_value), "%d", get_setting((Settings)i));
 		UTIL_LCD_DisplayStringAt(10, 50 + i * 20, setting_value, RIGHT_MODE);
+	}
+
+	return 0;
+}
+
+static bool show_battery(int xpos, int ypos)
+{
+	int battery = 0;
+	if(vesc_status.v_in >= 360 && vesc_status.v_in <= 420)
+		battery = discharge_curve[vesc_status.v_in - 360];
+	else
+	{
+		battery = 0;
+		return 1;
+	}
+	if(battery_old != battery)
+	{
+		// Display battery icon
+		UTIL_LCD_FillRect(xpos, ypos, 52, 22, UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_FillRect(xpos+1 + (50 - (battery/2)), ypos+1, battery/2, 20, UTIL_LCD_COLOR_GREEN);
+
+		// Display percentage
+		char battery_str[5];
+		snprintf(battery_str, sizeof(battery_str), "%d%%", battery);
+		UTIL_LCD_FillRect(xpos - 70, ypos, 60, 20, UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_SetFont(&Font16);
+		UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+		UTIL_LCD_DisplayStringAt((240 - xpos + 5), xpos + 5, (uint8_t*)battery_str, RIGHT_MODE);
+		// Update old battery level
+		battery_old = battery;
 	}
 
 	return 0;

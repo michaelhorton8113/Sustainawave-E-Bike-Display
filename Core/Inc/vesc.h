@@ -28,6 +28,7 @@ typedef struct VESC_Status {
 
 extern volatile VESC_Status vesc_status;
 
+void can_task(void* argumnet);
 void sendVESCMessage(uint8_t TA);
 void vesc_init(CAN_HandleTypeDef *can_handle);
 void vesc_transmit(uint8_t command, uint8_t *data);

@@ -10,7 +10,7 @@
 
 #include <stdbool.h>
 
-#define SETTINGS_LENGTH (2)
+#define SETTINGS_LENGTH (4)
 typedef enum Settings {
 	WheelSize 			= 0,
 	VescID				= 1,

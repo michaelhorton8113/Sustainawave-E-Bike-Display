@@ -17,10 +17,13 @@
 #include "app_display.h"
 #include "settings.h"
 
-TickType_t last_button_time = 0;
+uint32_t setting_selected = 0;
+
+static TickType_t last_button_time = 0;
 static TickType_t last_state_change = 0;
 static uint8_t last_state = 0;		// Last state initialized as no button pushed
 static bool long_press = 0;
+
 
 static void handleButtonClick(ButtonState button);
 
@@ -34,7 +37,6 @@ void button_task(void *argument)
 
 		if(button != ButtonNone)
 			handleButtonClick(button);
-
 
 		// Run task every 16ms (~60Hz)
 		vTaskDelayUntil(&start, 16);
@@ -75,19 +77,19 @@ void handleButtonClick(ButtonState button) {
 			screen = ScreenSettings;
 			setting_selected = 0;
 
-			setup_display(screen);
-			display_settings();
-			while(get_button_state() == ButtonMiddleLong) vTaskDelay(10);
+//			setup_display(screen);
+//			display_settings();
+//			while(get_button_state() == ButtonMiddleLong) vTaskDelay(10);
 		}
 		else
 		{
 			screen = ScreenSpeed;
 			update_screen(screen);
-			setup_display(screen);
+//			setup_display(screen);
 			while(get_button_state() == ButtonMiddleLong)
 			{
 				vTaskDelay(10);
-				display_speed();
+//				display_speed();
 			}
 		}
 		break;

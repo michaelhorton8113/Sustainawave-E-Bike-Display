@@ -24,6 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "vesc.h"
+#include "buttons.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,6 +43,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 CAN_HandleTypeDef hcan1;
 
 RTC_HandleTypeDef hrtc;
@@ -62,15 +65,39 @@ const osThreadAttr_t displayTask_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for buttonTask */
+osThreadId_t buttonTaskHandle;
+const osThreadAttr_t buttonTask_attributes = {
+  .name = "buttonTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal,
+};
+/* Definitions for canTask */
+osThreadId_t canTaskHandle;
+const osThreadAttr_t canTask_attributes = {
+  .name = "canTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityHigh,
+};
 /* Definitions for screen_update */
 osMutexId_t screen_updateHandle;
 const osMutexAttr_t screen_update_attributes = {
   .name = "screen_update"
 };
+/* Definitions for setting_update */
+osMutexId_t setting_updateHandle;
+const osMutexAttr_t setting_update_attributes = {
+  .name = "setting_update"
+};
 /* Definitions for display_refresh */
 osSemaphoreId_t display_refreshHandle;
 const osSemaphoreAttr_t display_refresh_attributes = {
   .name = "display_refresh"
+};
+/* Definitions for adc_done */
+osSemaphoreId_t adc_doneHandle;
+const osSemaphoreAttr_t adc_done_attributes = {
+  .name = "adc_done"
 };
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
@@ -83,8 +110,11 @@ static void MX_DMA_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_RTC_Init(void);
+static void MX_ADC1_Init(void);
 void StartDefaultTask(void *argument);
-void DISPLAY_Task(void *argument);
+extern void DISPLAY_Task(void *argument);
+extern void button_task(void *argument);
+extern void can_task(void *argument);
 
 /* USER CODE BEGIN PFP */
 void sendVESCMessage(uint8_t TA);
@@ -126,6 +156,7 @@ int main(void)
   MX_TIM2_Init();
   MX_CAN1_Init();
   MX_RTC_Init();
+  MX_ADC1_Init();
   MX_DISPLAY_Init();
   /* Call PreOsInit function */
   MX_DISPLAY_PreOSInit();
@@ -142,6 +173,9 @@ int main(void)
   /* creation of screen_update */
   screen_updateHandle = osMutexNew(&screen_update_attributes);
 
+  /* creation of setting_update */
+  setting_updateHandle = osMutexNew(&setting_update_attributes);
+
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
@@ -149,6 +183,9 @@ int main(void)
   /* Create the semaphores(s) */
   /* creation of display_refresh */
   display_refreshHandle = osSemaphoreNew(1, 1, &display_refresh_attributes);
+
+  /* creation of adc_done */
+  adc_doneHandle = osSemaphoreNew(1, 1, &adc_done_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -168,6 +205,12 @@ int main(void)
 
   /* creation of displayTask */
   displayTaskHandle = osThreadNew(DISPLAY_Task, NULL, &displayTask_attributes);
+
+  /* creation of buttonTask */
+  buttonTaskHandle = osThreadNew(button_task, NULL, &buttonTask_attributes);
+
+  /* creation of canTask */
+  canTaskHandle = osThreadNew(can_task, NULL, &canTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
 
@@ -239,6 +282,73 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_MultiModeTypeDef multimode = {0};
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Common config
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.LowPowerAutoWait = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc1.Init.OversamplingMode = DISABLE;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure the ADC multi-mode
+  */
+  multimode.Mode = ADC_MODE_INDEPENDENT;
+  if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_13;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SingleDiff = ADC_SINGLE_ENDED;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -457,8 +567,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void
-HAL_Delay(volatile uint32_t millis)
+void HAL_Delay(volatile uint32_t millis)
 {
 	vTaskDelay(millis);
 }
@@ -485,24 +594,6 @@ void StartDefaultTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END 5 */
-}
-
-/* USER CODE BEGIN Header_DISPLAY_Task */
-/**
-* @brief Function implementing the displayTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_DISPLAY_Task */
-__weak void DISPLAY_Task(void *argument)
-{
-  /* USER CODE BEGIN DISPLAY_Task */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END DISPLAY_Task */
 }
 
 /**
