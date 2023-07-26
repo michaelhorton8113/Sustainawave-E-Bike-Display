@@ -57,6 +57,8 @@ void DISPLAY_Task(void *argument);
 /* USER CODE BEGIN EFP */
 ScreenType get_screen(void);
 bool update_screen(ScreenType screen);
+int get_selection(void);
+bool set_selection(int selection);
 
 /* USER CODE END EFP */
 

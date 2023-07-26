@@ -42,6 +42,7 @@ extern "C" {
 extern osSemaphoreId_t assist_levelHandle;
 extern osSemaphoreId_t duty_cycleHandle;
 extern osSemaphoreId_t settings_updateHandle;
+extern osSemaphoreId_t settings_selectionHandle;
 extern osMutexId_t screen_updateHandle;
 extern ADC_HandleTypeDef hadc1;
 /* USER CODE END ET */

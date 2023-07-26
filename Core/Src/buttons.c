@@ -77,10 +77,10 @@ void handleButtonClick(ButtonState button) {
 	break;
 	case ButtonMiddleLong:
 		// Toggle settings screen
-		if(screen != ScreenSettings)
+		if(screen != ScreenSettings && screen != ScreenSettingsEditing)
 		{
 			screen = ScreenSettings;
-			setting_selected = 0;
+			set_selection(0);
 
 			update_screen(screen);
 		}
@@ -131,7 +131,8 @@ void handleButtonClick(ButtonState button) {
 		}
 		else if(screen == ScreenSettings)
 		{
-			setting_selected -= (int)(setting_selected > 0);
+			int current_selection = get_selection();
+			set_selection(current_selection + (int)(current_selection < SETTINGS_LENGTH));
 		}
 		else
 		{
@@ -141,11 +142,12 @@ void handleButtonClick(ButtonState button) {
 	case ButtonRight:
 		if(screen == ScreenSettingsEditing)
 		{
-			inc_setting((Settings)setting_selected);
+			inc_setting((Settings)get_selection());
 		}
 		else if(screen == ScreenSettings)
 		{
-			setting_selected += (int)(setting_selected < SETTINGS_LENGTH);
+			int current_selection = get_selection();
+			set_selection(current_selection - (int)(current_selection > 0));
 		}
 		else
 		{

@@ -99,6 +99,11 @@ osSemaphoreId_t settings_updateHandle;
 const osSemaphoreAttr_t settings_update_attributes = {
   .name = "settings_update"
 };
+/* Definitions for settings_selection */
+osSemaphoreId_t settings_selectionHandle;
+const osSemaphoreAttr_t settings_selection_attributes = {
+  .name = "settings_selection"
+};
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
 /* USER CODE END PV */
@@ -186,6 +191,9 @@ int main(void)
 
   /* creation of settings_update */
   settings_updateHandle = osSemaphoreNew(1, 1, &settings_update_attributes);
+
+  /* creation of settings_selection */
+  settings_selectionHandle = osSemaphoreNew(1, 1, &settings_selection_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */

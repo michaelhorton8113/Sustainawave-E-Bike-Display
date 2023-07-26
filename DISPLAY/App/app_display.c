@@ -111,6 +111,8 @@ ScreenType current_screen = ScreenSpeed;
 ScreenType screen_old = ScreenSpeed;
 static int battery_old = -1;
 static int speed_old = -1;
+static int setting_old = -1;
+static int setting_selected_old = -1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -300,10 +302,24 @@ void DISPLAY_Task(void *argument)
 		ScreenType screen = get_screen();
 		if(screen != screen_old)
 		{
-			// Update current display
-			screen_old = screen;
-			// Setup new display
-			setup_display(screen);
+			// If switching between settings editing and select modes
+			if((screen_old == ScreenSettings && screen == ScreenSettingsEditing)
+					|| (screen_old == ScreenSettingsEditing && screen == ScreenSettings))
+			{
+				// Update the display
+				screen_old = screen;
+				// Set old value so number does not flash
+				setting_old = get_setting(get_selection());
+			}
+			// Otherwise, setup a new display
+			else
+			{
+				// Update current display
+				screen_old = screen;
+				// Setup new display
+				setup_display(screen);
+			}
+
 		}
 
 		// Update and display the current screen
@@ -372,6 +388,24 @@ bool update_screen(ScreenType screen)
 	osSemaphoreAcquire(screen_updateHandle, portMAX_DELAY);
 	current_screen = screen;
 	osSemaphoreRelease(screen_updateHandle);
+
+	return 0;
+}
+
+int get_selection(void)
+{
+	osSemaphoreAcquire(settings_selectionHandle, portMAX_DELAY);
+	int selection = setting_selected;
+	osSemaphoreRelease(settings_selectionHandle);
+
+	return selection;
+}
+
+bool set_selection(int selection)
+{
+	osSemaphoreAcquire(settings_selectionHandle, portMAX_DELAY);
+	setting_selected = selection;
+	osSemaphoreRelease(settings_selectionHandle);
 
 	return 0;
 }
@@ -506,16 +540,46 @@ static bool display_settings(bool editing)
 {
 	// If more than 10 settings, just print 10
 	int num_printed = (SETTINGS_LENGTH > 10) ? 10 : SETTINGS_LENGTH;
-	if(!editing)
-		UTIL_LCD_FillRect(5, 56 + (setting_selected * 20), 4, 4, UTIL_LCD_COLOR_WHITE);
-	else
-		UTIL_LCD_FillRect(235, 56 + (setting_selected * 20), 4, 4, UTIL_LCD_COLOR_WHITE);
 
+	int selection = get_selection();
+	if(selection != setting_selected_old)
+	{
+		UTIL_LCD_FillRect(235, 20, 4, 300, UTIL_LCD_COLOR_TRANSPARENT);
+		UTIL_LCD_FillRect(5, 20, 4, 300, UTIL_LCD_COLOR_TRANSPARENT);
+		setting_selected_old = selection;
+	}
+
+	if(!editing)
+	{
+		UTIL_LCD_FillRect(5, 56 + (selection * 20), 4, 4, UTIL_LCD_COLOR_WHITE);
+		// Clear the other side
+		UTIL_LCD_FillRect(235, 20, 4, 300, UTIL_LCD_COLOR_TRANSPARENT);
+	}
+	else
+	{
+		// Clear the other side
+		UTIL_LCD_FillRect(5, 20, 4, 300, UTIL_LCD_COLOR_TRANSPARENT);
+		// If the setting has changed
+		if(setting_old != get_setting((Settings)selection))
+		{
+			// Clear the relevant setting
+			UTIL_LCD_FillRect(160, 50 + (selection) * 20, 80, 16, UTIL_LCD_COLOR_TRANSPARENT);
+			setting_old = get_setting((Settings)selection);
+		}
+
+		// Display selection indicator
+		UTIL_LCD_FillRect(235, 56 + (selection * 20), 4, 4, UTIL_LCD_COLOR_WHITE);
+	}
+
+	// Set font and text color for setting display
 	UTIL_LCD_SetTextColor(UTIL_LCD_COLOR_WHITE);
+	UTIL_LCD_SetFont(&Font16);
+
 	for(int i = 0; i < num_printed; i++)
 	{
-		UTIL_LCD_SetFont(&Font16);
+		// Display the setting label
 		UTIL_LCD_DisplayStringAt(20, 50 + i * 20, (uint8_t*)get_label((Settings)i), LEFT_MODE);
+		// Display setting value
 		uint8_t setting_value[5];
 		snprintf((char*)setting_value, sizeof(setting_value), "%d", get_setting((Settings)i));
 		UTIL_LCD_DisplayStringAt(10, 50 + i * 20, setting_value, RIGHT_MODE);
