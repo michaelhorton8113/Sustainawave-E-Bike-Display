@@ -263,7 +263,7 @@ void MX_DISPLAY_Init(void)
   /* USER CODE BEGIN MX_DISPLAY_Init 0 */
   init_settings();
   /* USER CODE END MX_DISPLAY_Init 0 */
-  if(BSP_LCD_Init(0, LCD_ORIENTATION_PORTRAIT) != BSP_ERROR_NONE)
+  if(BSP_LCD_Init(0, LCD_ORIENTATION_PORTRAIT_ROT180) != BSP_ERROR_NONE)
   {
     Error_Handler();
   }

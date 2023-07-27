@@ -83,7 +83,7 @@ void vesc_transmit(uint8_t command, uint8_t * data)
   header.ExtId = get_setting(VescID) | (command << 8);
   header.IDE = CAN_ID_EXT;
   header.RTR = CAN_RTR_DATA;
-  header.DLC = 1;
+  header.DLC = 4;
   header.TransmitGlobalTime = DISABLE;
 
   uint32_t mailbox;
